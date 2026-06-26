@@ -1,0 +1,17 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f7f8fb;
+  color: #222;
+}
+
+.app-shell {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header h1 {
+  margin: 0 0 1rem;
+  font-size: 2rem;
+}
