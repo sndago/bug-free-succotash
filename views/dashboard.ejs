@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cone — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+<%
+  const roleLabels = { super_admin: 'Super Admin', admin: 'Admin', teller: 'Teller' };
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = user.name.split(' ')[0];
+%>
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 40 40" width="26" height="26" fill="none">
+        <polygon points="20,3 38,37 2,37" fill="#6366f1"/>
+      </svg>
+      <span class="logo-text">CONE</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-link active">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/dashboard" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Clients
+      </a>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="user-avatar"><%= user.name[0].toUpperCase() %></div>
+      <div class="user-info">
+        <div class="user-name"><%= user.name %></div>
+        <span class="role-badge <%= user.role %>"><%= roleLabels[user.role] || user.role %></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ──────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-greeting">
+        <h1><%= greeting %>, <%= firstName %></h1>
+        <p>Here's a summary of your client data.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:.625rem">
+        <% if (['admin','super_admin'].includes(user.role)) { %>
+        <a href="/clients/new" class="btn-add-client">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add Client
+        </a>
+        <% } %>
+        <form action="/logout" method="POST">
+          <button type="submit" class="btn-logout">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Sign out
+          </button>
+        </form>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <link rel="stylesheet" href="/css/form.css">
+      <% if (flash) { %>
+      <div class="flash flash-<%= flash.type %>">
+        <% if (flash.type === 'success') { %>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <% } else { %>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
+        <% } %>
+        <%= flash.message %>
+      </div>
+      <% } %>
+
+      <!-- ── Stats ─── -->
+      <div class="stats-grid">
+
+        <% if (user.role === 'teller') { %>
+        <div class="stat-card">
+          <div class="stat-icon indigo">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="stat-value"><%= stats.totalClients %></div>
+            <div class="stat-label">My Clients</div>
+          </div>
+        </div>
+
+        <% } else { %>
+
+        <div class="stat-card">
+          <div class="stat-icon indigo">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div>
+            <div class="stat-value"><%= stats.totalClients %></div>
+            <div class="stat-label">Total Clients</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <div>
+            <div class="stat-value"><%= stats.activeClients %></div>
+            <div class="stat-label">Active Clients</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div>
+            <div class="stat-value">$<%= (stats.totalBalance || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) %></div>
+            <div class="stat-label">Total Balance</div>
+          </div>
+        </div>
+
+        <% if (user.role === 'super_admin') { %>
+        <div class="stat-card">
+          <div class="stat-icon purple">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="stat-value"><%= stats.totalUsers %></div>
+            <div class="stat-label">System Users</div>
+          </div>
+        </div>
+        <% } %>
+
+        <% } %>
+      </div>
+
+      <!-- ── Clients Table ─── -->
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Client Records</h3>
+          <div class="table-search">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" placeholder="Search clients…" oninput="filterTable(this.value)">
+          </div>
+        </div>
+
+        <% if (!clients || clients.length === 0) { %>
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+          </svg>
+          <p>No client records found.</p>
+        </div>
+        <% } else { %>
+        <div class="table-wrapper">
+          <table class="clients-table" id="clientsTable">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Account #</th>
+                <th>Type</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <% if (user.role !== 'teller') { %><th>Assigned Teller</th><% } %>
+              </tr>
+            </thead>
+            <tbody>
+              <% clients.forEach(client => { %>
+              <tr class="clickable-row" onclick="window.location='/clients/<%= client._id %>'">
+                <td>
+                  <div class="client-name"><%= client.name %></div>
+                  <div class="client-email"><%= client.email || '—' %></div>
+                </td>
+                <td style="font-variant-numeric:tabular-nums"><%= client.accountNumber %></td>
+                <td><span class="type-badge <%= client.accountType %>"><%= client.accountType %></span></td>
+                <td class="balance">$<%= client.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                <td><span class="status-badge <%= client.status %>"><%= client.status %></span></td>
+                <% if (user.role !== 'teller') { %>
+                <td style="color:#6b7280;font-size:.85rem">
+                  <%= client.assignedTeller ? client.assignedTeller.name : '—' %>
+                </td>
+                <% } %>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function filterTable(q) {
+    const rows = document.querySelectorAll('#clientsTable tbody tr');
+    const term = q.toLowerCase();
+    rows.forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+    });
+  }
+</script>
+</body>
+</html>

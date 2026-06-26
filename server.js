@@ -11,7 +11,7 @@ try {
   process.exit(1);
 }
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   await connectDB();
@@ -20,6 +20,15 @@ const startServer = async () => {
     logger.banner(PORT);
     logger.success(`Server is live on port ${PORT}`);
     logger.info('Press Ctrl+C to stop\n');
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      logger.error(`Port ${PORT} is already in use`);
+    } else {
+      logger.error('Server error', err.message);
+    }
+    process.exit(1);
   });
 
   const shutdown = (signal) => {
@@ -34,4 +43,7 @@ const startServer = async () => {
   process.on('SIGINT', () => shutdown('SIGINT'));
 };
 
-startServer();
+startServer().catch((err) => {
+  logger.error('Failed to start server', err.message);
+  process.exit(1);
+});

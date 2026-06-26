@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cone — <%= isEdit ? 'Edit Client' : 'Add Client' %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/client.css">
+  <link rel="stylesheet" href="/css/form.css">
+</head>
+<body>
+<%
+  const roleLabels = { super_admin: 'Super Admin', admin: 'Admin', teller: 'Teller' };
+  const val = (field, fallback = '') => client[field] !== undefined && client[field] !== null ? client[field] : fallback;
+  const sel = (field, value) => String(val(field)) === String(value) ? 'selected' : '';
+  const tellerId = client.assignedTeller?._id
+    ? String(client.assignedTeller._id)
+    : String(client.assignedTeller || '');
+%>
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 40 40" width="26" height="26" fill="none">
+        <polygon points="20,3 38,37 2,37" fill="#6366f1"/>
+      </svg>
+      <span class="logo-text">CONE</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/dashboard" class="nav-link active">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Clients
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar"><%= user.name[0].toUpperCase() %></div>
+      <div class="user-info">
+        <div class="user-name"><%= user.name %></div>
+        <span class="role-badge <%= user.role %>"><%= roleLabels[user.role] || user.role %></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ──────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-breadcrumb">
+        <a href="/dashboard" class="back-link">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          Dashboard
+        </a>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+        <% if (isEdit) { %>
+        <a href="/clients/<%= client._id %>" class="back-link"><%= val('name', 'Client') %></a>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+        <% } %>
+        <span class="breadcrumb-current"><%= isEdit ? 'Edit' : 'Add Client' %></span>
+      </div>
+      <a href="<%= isEdit ? `/clients/${client._id}` : '/dashboard' %>" class="btn-cancel">
+        Cancel
+      </a>
+    </header>
+
+    <div class="page-content">
+      <div class="form-page-wrap">
+
+        <!-- Page title -->
+        <div class="form-page-header">
+          <div class="form-page-icon">
+            <% if (isEdit) { %>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <% } else { %>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="8.5" cy="7" r="4"/>
+              <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+            <% } %>
+          </div>
+          <div>
+            <h1 class="form-page-title"><%= isEdit ? 'Edit Client' : 'Add New Client' %></h1>
+            <p class="form-page-sub"><%= isEdit ? 'Update account information and settings.' : 'Create a new client account in the system.' %></p>
+          </div>
+        </div>
+
+        <!-- Validation errors -->
+        <% if (errors && errors.length) { %>
+        <div class="form-errors">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" class="form-errors-icon">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+          </svg>
+          <div>
+            <strong>Please fix the following:</strong>
+            <ul>
+              <% errors.forEach(e => { %><li><%= e %></li><% }) %>
+            </ul>
+          </div>
+        </div>
+        <% } %>
+
+        <!-- Form -->
+        <form
+          action="<%= isEdit ? `/clients/${client._id}` : '/clients' %>"
+          method="POST"
+          class="client-form"
+          novalidate
+        >
+
+          <!-- Section: Personal Information -->
+          <div class="form-section">
+            <div class="form-section-label">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              Personal Information
+            </div>
+            <div class="form-grid">
+              <div class="form-group form-col-full">
+                <label for="name">Full Name <span class="req">*</span></label>
+                <input type="text" id="name" name="name"
+                       value="<%= val('name') %>"
+                       placeholder="e.g. Alice Johnson"
+                       required autocomplete="off">
+              </div>
+
+              <div class="form-group">
+                <label for="email">Email Address</label>
+                <div class="input-with-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>
+                  </svg>
+                  <input type="email" id="email" name="email"
+                         value="<%= val('email') %>"
+                         placeholder="client@example.com"
+                         autocomplete="off">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <div class="input-with-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.38 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                  <input type="tel" id="phone" name="phone"
+                         value="<%= val('phone') %>"
+                         placeholder="555-0100">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Account Details -->
+          <div class="form-section">
+            <div class="form-section-label">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+              </svg>
+              Account Details
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="accountNumber">Account Number <span class="req">*</span></label>
+                <input type="text" id="accountNumber" name="accountNumber"
+                       value="<%= val('accountNumber') %>"
+                       placeholder="ACC-007"
+                       style="font-family: monospace; letter-spacing: .05em;"
+                       autocomplete="off" required>
+                <span class="field-hint">Must be unique across all accounts.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="accountType">Account Type <span class="req">*</span></label>
+                <div class="select-wrap">
+                  <select id="accountType" name="accountType" required>
+                    <option value="">Select type…</option>
+                    <option value="savings"  <%= sel('accountType', 'savings')  %>>Savings</option>
+                    <option value="checking" <%= sel('accountType', 'checking') %>>Checking</option>
+                    <option value="business" <%= sel('accountType', 'business') %>>Business</option>
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" class="select-chevron">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="balance"><%= isEdit ? 'Current' : 'Opening' %> Balance <span class="req">*</span></label>
+                <div class="input-with-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                  <input type="number" id="balance" name="balance"
+                         value="<%= val('balance', 0) %>"
+                         min="0" step="0.01"
+                         style="font-variant-numeric: tabular-nums;"
+                         required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="status">Status <span class="req">*</span></label>
+                <div class="select-wrap">
+                  <select id="status" name="status" required>
+                    <option value="active"    <%= sel('status', 'active')    %>>Active</option>
+                    <option value="inactive"  <%= sel('status', 'inactive')  %>>Inactive</option>
+                    <option value="suspended" <%= sel('status', 'suspended') %>>Suspended</option>
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" class="select-chevron">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Assignment -->
+          <div class="form-section">
+            <div class="form-section-label">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Assignment
+            </div>
+            <div class="form-grid">
+              <div class="form-group form-col-full">
+                <label for="assignedTeller">Assigned Teller</label>
+                <div class="select-wrap">
+                  <select id="assignedTeller" name="assignedTeller">
+                    <option value="">None — unassigned</option>
+                    <% tellers.forEach(t => { %>
+                    <option value="<%= t._id %>" <%- tellerId === String(t._id) ? 'selected' : '' %>>
+                      <%= t.name %>
+                    </option>
+                    <% }) %>
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" class="select-chevron">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+                <span class="field-hint">Tellers can only view their assigned clients.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <a href="<%= isEdit ? `/clients/${client._id}` : '/dashboard' %>" class="btn-cancel-form">
+              Cancel
+            </a>
+            <button type="submit" class="btn-save">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <% if (isEdit) { %>
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                <% } else { %>
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="8.5" cy="7" r="4"/>
+                <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+                <% } %>
+              </svg>
+              <%= isEdit ? 'Save Changes' : 'Create Client' %>
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
