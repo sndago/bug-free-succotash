@@ -334,6 +334,68 @@
     </div>
   </div>
 </div>
-<%- include('partials/mobile-nav') %>
+<!-- ── Mobile: backdrop + drawer toggle ─────────────── -->
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
+<!-- ── Mobile: bottom navigation bar ───────────────── -->
+<nav class="mobile-nav">
+  <a href="/dashboard" class="mobile-nav-item" data-path="/dashboard">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    Home
+  </a>
+  <a href="/clients" class="mobile-nav-item" data-path="/clients">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+    </svg>
+    Clients
+  </a>
+  <a href="/transactions" class="mobile-nav-item" data-path="/transactions">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <line x1="17" y1="7" x2="7" y2="7"/>
+      <polyline points="14 4 17 7 14 10"/>
+      <line x1="7" y1="17" x2="17" y2="17"/>
+      <polyline points="10 14 7 17 10 20"/>
+    </svg>
+    Txns
+  </a>
+  <button class="mobile-nav-item" onclick="openSidebar()">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+    Menu
+  </button>
+</nav>
+
+<script>
+  // Mark active bottom nav item by current URL path
+  (function () {
+    var path = window.location.pathname;
+    document.querySelectorAll('.mobile-nav-item[data-path]').forEach(function (item) {
+      if (path === item.dataset.path || path.startsWith(item.dataset.path + '/')) {
+        item.classList.add('active');
+      }
+    });
+  })();
+
+  function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebarBackdrop').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarBackdrop').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+</script>
+
 </body>
 </html>

@@ -142,6 +142,7 @@ const editClientForm = async (req, res) => {
 
     res.render('client-form', {
       user: req.session.user, tellers, client, errors: [], isEdit: true,
+      isTeller: req.session.user.role === 'teller',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
