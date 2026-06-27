@@ -172,7 +172,7 @@
                 Update details for this <%= isPendingRequest ? 'pending request' : 'transaction' %> on <strong><%= client.name %></strong>'s account.
               <% } else { %>
                 Record a transaction on <strong><%= client.name %></strong>'s account
-                (current balance: <strong>$<%= Number(client.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></strong>).
+                (current balance: <strong>₵<%= Number(client.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></strong>).
               <% } %>
             </p>
           </div>

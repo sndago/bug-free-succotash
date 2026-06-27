@@ -239,9 +239,9 @@
                 <td><span class="txn-status txn-status-<%= txn.type %>"><%= txn.type %></span></td>
                 <td class="col-right">
                   <% if (txn.type === 'credit') { %>
-                  <span class="amount-credit">+$<%= fmt(txn.amount) %></span>
+                  <span class="amount-credit">+₵<%= fmt(txn.amount) %></span>
                   <% } else { %>
-                  <span class="amount-debit">−$<%= fmt(txn.amount) %></span>
+                  <span class="amount-debit">−₵<%= fmt(txn.amount) %></span>
                   <% } %>
                 </td>
                 <td>

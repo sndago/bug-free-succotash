@@ -183,7 +183,7 @@
                 </td>
                 <td style="font-variant-numeric:tabular-nums"><%= client.accountNumber %></td>
                 <td><span class="type-badge <%= client.accountType %>"><%= client.accountType %></span></td>
-                <td class="balance">$<%= client.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                <td class="balance">₵<%= client.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
                 <td>
                   <% if (client.approvalStatus === 'pending') { %>
                   <span class="approval-badge approval-pending">

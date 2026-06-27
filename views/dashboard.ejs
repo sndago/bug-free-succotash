@@ -18,10 +18,10 @@
   const fmt        = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtK       = n => {
     n = Number(n);
-    if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
-    if (n >= 10000)   return '$' + Math.round(n/1000) + 'K';
-    if (n >= 1000)    return '$' + (n/1000).toFixed(1) + 'K';
-    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (n >= 1000000) return '₵' + (n/1000000).toFixed(1) + 'M';
+    if (n >= 10000)   return '₵' + Math.round(n/1000) + 'K';
+    if (n >= 1000)    return '₵' + (n/1000).toFixed(1) + 'K';
+    return '₵' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
   const fmtDate    = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const fmtTime    = d => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -136,7 +136,6 @@
     </header>
 
     <div class="page-content">
-      <link rel="stylesheet" href="/css/form.css">
       <% if (flash) { %>
       <div class="flash flash-<%= flash.type %>">
         <% if (flash.type === 'success') { %>
@@ -252,7 +251,7 @@
               <p>No transactions yet.</p>
             </div>
             <% } else { %>
-            <div class="table-wrapper" style="overflow-x:auto">
+            <div class="table-wrapper">
               <table class="teller-txn-table">
                 <thead>
                   <tr>
@@ -275,9 +274,9 @@
                     <td><span class="txn-cat-badge"><%= txn.category %></span></td>
                     <td style="text-align:right;white-space:nowrap">
                       <% if (txn.type === 'credit') { %>
-                      <span class="txn-amount-credit">+$<%= fmt(txn.amount) %></span>
+                      <span class="txn-amount-credit">+₵<%= fmt(txn.amount) %></span>
                       <% } else { %>
-                      <span class="txn-amount-debit">−$<%= fmt(txn.amount) %></span>
+                      <span class="txn-amount-debit">−₵<%= fmt(txn.amount) %></span>
                       <% } %>
                     </td>
                     <td>
@@ -536,5 +535,11 @@
     </div>
   </div>
 </div>
+<style>
+  /* Dashboard: make the teller grid fill the page so only transactions scroll */
+  .db-grid       { flex: 1; min-height: 0; }
+  .db-kpi-row, .period-filter-bar { flex-shrink: 0; }
+  .db-teller-row { flex: 1; min-height: 0; }
+</style>
 </body>
 </html>

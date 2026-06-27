@@ -189,7 +189,7 @@
                   </td>
                   <td style="font-variant-numeric:tabular-nums"><code><%= c.accountNumber %></code></td>
                   <td><span class="type-badge <%= c.accountType %>"><%= c.accountType %></span></td>
-                  <td class="col-right">$<%= Number(c.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></td>
+                  <td class="col-right">₵<%= Number(c.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></td>
                   <td><span class="client-name"><%= c.requestedBy?.name || '—' %></span></td>
                   <td>
                     <% if (c.approvalStatus === 'pending') { %>
@@ -284,7 +284,7 @@
                   </td>
                   <td style="font-size:.8rem;color:#64748b">
                     <div><strong>Type:</strong> <%= req.type %></div>
-                    <div><strong>Amount:</strong> $<%= fmt(req.amount) %></div>
+                    <div><strong>Amount:</strong> ₵<%= fmt(req.amount) %></div>
                     <div><strong>Cat:</strong> <%= req.category %></div>
                     <div><strong>Desc:</strong> <%= req.description %></div>
                   </td>
@@ -293,7 +293,7 @@
                     <div><strong>Type:</strong> <span style="color:#7c3aed"><%= e.type %></span></div>
                     <% } %>
                     <% if (String(e.amount) !== String(req.amount)) { %>
-                    <div><strong>Amount:</strong> <span style="color:#7c3aed">$<%= fmt(e.amount) %></span></div>
+                    <div><strong>Amount:</strong> <span style="color:#7c3aed">₵<%= fmt(e.amount) %></span></div>
                     <% } %>
                     <% if (e.category !== req.category) { %>
                     <div><strong>Cat:</strong> <span style="color:#7c3aed"><%= e.category %></span></div>
@@ -377,9 +377,9 @@
                 <td><span class="txn-desc"><%= req.description %></span></td>
                 <td class="col-right">
                   <% if (req.type === 'debit') { %>
-                  <span class="amount-debit">−$<%= fmt(req.amount) %></span>
+                  <span class="amount-debit">−₵<%= fmt(req.amount) %></span>
                   <% } else { %>
-                  <span class="amount-credit">+$<%= fmt(req.amount) %></span>
+                  <span class="amount-credit">+₵<%= fmt(req.amount) %></span>
                   <% } %>
                 </td>
                 <td>

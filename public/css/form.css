@@ -229,30 +229,9 @@
 }
 .btn-cancel:hover { background: #f8fafc; border-color: #cbd5e1; }
 
-/* ─── Flash messages ─────────────────────────── */
-.flash {
-  display: flex;
-  align-items: center;
-  gap: .625rem;
-  padding: .875rem 1.125rem;
-  border-radius: .75rem;
-  font-size: .875rem;
-  font-weight: 500;
-  margin-bottom: 1.25rem;
-  animation: fadeUp .3s ease both, flashOut 0.8s ease 5s forwards;
-}
-.flash-success {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-left: 3px solid #059669;
-  color: #065f46;
-}
-.flash-error {
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  border-left: 3px solid #e11d48;
-  color: #be123c;
-}
+/* ─── Scroll-lock override for form pages ────── */
+.main-content { height: auto; min-height: 100vh; overflow: visible; }
+.page-content  { overflow: visible; display: block; padding-bottom: 2rem; }
 
 /* ─── Client detail: edit / delete buttons ───── */
 .client-actions {

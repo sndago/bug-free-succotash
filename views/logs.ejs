@@ -325,7 +325,7 @@
                   <div class="log-desc"><%= log.description %></div>
                   <% if (log.meta && Object.keys(log.meta).length) { %>
                   <div class="log-meta">
-                    <% if (log.meta.amount)    { %><span>$<%= Number(log.meta.amount).toFixed(2) %></span><% } %>
+                    <% if (log.meta.amount)    { %><span>₵<%= Number(log.meta.amount).toFixed(2) %></span><% } %>
                     <% if (log.meta.category)  { %><span> · <%= log.meta.category %></span><% } %>
                     <% if (log.meta.reason)    { %><span> · Reason: <%= log.meta.reason %></span><% } %>
                     <% if (log.meta.email && log.entity === 'user') { %><span> · <%= log.meta.email %></span><% } %>

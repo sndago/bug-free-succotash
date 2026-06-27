@@ -254,7 +254,7 @@
             </svg>
           </div>
           <div>
-            <div class="stat-value">$<%= fmt(stats.balance) %></div>
+            <div class="stat-value">₵<%= fmt(stats.balance) %></div>
             <div class="stat-label">Current Balance</div>
           </div>
         </div>
@@ -266,7 +266,7 @@
             </svg>
           </div>
           <div>
-            <div class="stat-value">$<%= fmt(stats.periodCredits) %></div>
+            <div class="stat-value">₵<%= fmt(stats.periodCredits) %></div>
             <div class="stat-label">Credits · <%= periodLabel %></div>
           </div>
         </div>
@@ -278,7 +278,7 @@
             </svg>
           </div>
           <div>
-            <div class="stat-value">$<%= fmt(stats.periodDebits) %></div>
+            <div class="stat-value">₵<%= fmt(stats.periodDebits) %></div>
             <div class="stat-label">Debits · <%= periodLabel %></div>
           </div>
         </div>
@@ -384,20 +384,20 @@
                 </td>
                 <td class="col-right">
                   <% if (txn.type === 'debit') { %>
-                  <span class="amount-debit">−$<%= fmt(txn.amount) %></span>
+                  <span class="amount-debit">−₵<%= fmt(txn.amount) %></span>
                   <% } else { %>
                   <span class="amount-nil">—</span>
                   <% } %>
                 </td>
                 <td class="col-right">
                   <% if (txn.type === 'credit') { %>
-                  <span class="amount-credit">+$<%= fmt(txn.amount) %></span>
+                  <span class="amount-credit">+₵<%= fmt(txn.amount) %></span>
                   <% } else { %>
                   <span class="amount-nil">—</span>
                   <% } %>
                 </td>
                 <td class="col-right">
-                  <span class="balance-val">$<%= fmt(txn.balanceAfter) %></span>
+                  <span class="balance-val">₵<%= fmt(txn.balanceAfter) %></span>
                 </td>
                 <td>
                   <% if (txn.pendingEdit && txn.pendingEdit.editStatus === 'pending') { %>
@@ -519,8 +519,8 @@
         <div class="table-footer-bar">
           <span class="txn-count-label">
             <strong><%= transactions.length %></strong> transaction<%= transactions.length !== 1 ? 's' : '' %>
-            &nbsp;·&nbsp; Credits <strong>$<%= fmt(stats.periodCredits) %></strong>
-            &nbsp;·&nbsp; Debits <strong>$<%= fmt(stats.periodDebits) %></strong>
+            &nbsp;·&nbsp; Credits <strong>₵<%= fmt(stats.periodCredits) %></strong>
+            &nbsp;·&nbsp; Debits <strong>₵<%= fmt(stats.periodDebits) %></strong>
           </span>
         </div>
         <% } %>
@@ -589,5 +589,9 @@
     this.action = '/transactions/' + id + '/' + route;
   });
 </script>
+<style>
+  /* Client detail: hero + stats stay fixed; only the transaction list scrolls */
+  .client-hero { flex-shrink: 0; }
+</style>
 </body>
 </html>
