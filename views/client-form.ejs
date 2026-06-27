@@ -14,6 +14,7 @@
 <body>
 <%
   const roleLabels = { super_admin: 'Super Admin', admin: 'Admin', teller: 'Teller' };
+  const _isTeller  = isTeller || user.role === 'teller';
   const val = (field, fallback = '') => client[field] !== undefined && client[field] !== null ? client[field] : fallback;
   const sel = (field, value) => String(val(field)) === String(value) ? 'selected' : '';
   const tellerId = client.assignedTeller?._id
@@ -38,13 +39,44 @@
         </svg>
         Dashboard
       </a>
-      <a href="/dashboard" class="nav-link active">
+      <a href="/clients" class="nav-link active">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
           <circle cx="9" cy="7" r="4"/>
           <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
         Clients
+      </a>
+      <a href="/transactions" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="17" y1="7" x2="7" y2="7"/>
+          <polyline points="14 4 17 7 14 10"/>
+          <line x1="7" y1="17" x2="17" y2="17"/>
+          <polyline points="10 14 7 17 10 20"/>
+        </svg>
+        Transactions
+      </a>
+      <a href="/requests" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Requests
+      </a>
+      <a href="/users" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+        </svg>
+        Staff
+      </a>
+      <a href="/logs" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Logs
       </a>
     </nav>
     <div class="sidebar-user">
@@ -242,7 +274,8 @@
             </div>
           </div>
 
-          <!-- Section: Assignment -->
+          <!-- Section: Assignment (admins only — tellers are auto-assigned) -->
+          <% if (!_isTeller) { %>
           <div class="form-section">
             <div class="form-section-label">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -272,6 +305,7 @@
               </div>
             </div>
           </div>
+          <% } %>
 
           <!-- Actions -->
           <div class="form-actions">

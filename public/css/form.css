@@ -239,7 +239,7 @@
   font-size: .875rem;
   font-weight: 500;
   margin-bottom: 1.25rem;
-  animation: fadeUp .3s ease both;
+  animation: fadeUp .3s ease both, flashOut 0.8s ease 5s forwards;
 }
 .flash-success {
   background: #ecfdf5;

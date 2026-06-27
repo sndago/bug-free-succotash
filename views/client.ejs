@@ -39,7 +39,7 @@
         </svg>
         Dashboard
       </a>
-      <a href="/dashboard" class="nav-link active">
+      <a href="/clients" class="nav-link active">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
           <circle cx="9" cy="7" r="4"/>
@@ -47,6 +47,39 @@
         </svg>
         Clients
       </a>
+      <a href="/transactions" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="17" y1="7" x2="7" y2="7"/>
+          <polyline points="14 4 17 7 14 10"/>
+          <line x1="7" y1="17" x2="17" y2="17"/>
+          <polyline points="10 14 7 17 10 20"/>
+        </svg>
+        Transactions
+      </a>
+      <% if (['admin','super_admin'].includes(user.role)) { %>
+      <a href="/requests" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Requests
+      </a>
+      <a href="/users" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+        </svg>
+        Staff
+      </a>
+      <a href="/logs" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Logs
+      </a>
+      <% } %>
     </nav>
     <div class="sidebar-user">
       <div class="user-avatar"><%= user.name[0].toUpperCase() %></div>
@@ -129,6 +162,22 @@
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
         <% } %>
         <%= flash.message %>
+      </div>
+      <% } %>
+
+      <% if (client.approvalStatus === 'pending') { %>
+      <div class="flash flash-warning" style="background:#fffbeb;border-color:#f59e0b;color:#92400e">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
+        <% if (['admin','super_admin'].includes(user.role)) { %>
+        This account is awaiting your approval. <a href="/requests?tab=accounts" style="color:#92400e;font-weight:600">Review in Requests →</a>
+        <% } else { %>
+        This account registration is pending admin approval. Transactions cannot be added until it's approved.
+        <% } %>
+      </div>
+      <% } else if (client.approvalStatus === 'rejected') { %>
+      <div class="flash flash-error">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
+        This account registration was rejected<% if (client.rejectionReason) { %>: <em><%= client.rejectionReason %></em><% } %>.
       </div>
       <% } %>
 
@@ -262,11 +311,29 @@
               <a href="?range=all" class="period-tab <%- range === 'all' ? 'active' : '' %>">All</a>
             </div>
           </div>
-          <div class="table-search">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" placeholder="Search transactions…" oninput="filterTxns(this.value)" id="txnSearch">
+          <div style="display:flex;align-items:center;gap:.625rem">
+            <div class="table-search">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" placeholder="Search transactions…" oninput="filterTxns(this.value)" id="txnSearch">
+            </div>
+            <% if (['admin','super_admin','teller'].includes(user.role) && client.approvalStatus !== 'pending' && client.approvalStatus !== 'rejected') { %>
+            <a href="/clients/<%= client._id %>/transactions/new" class="btn-add-client" style="white-space:nowrap">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              New Transaction
+            </a>
+            <% } %>
+            <% if (['admin','super_admin'].includes(user.role)) { %>
+            <a href="/requests" class="btn-requests" style="white-space:nowrap">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              Requests
+            </a>
+            <% } %>
           </div>
         </div>
 
@@ -294,6 +361,9 @@
                 <th class="col-right">Credit</th>
                 <th class="col-right">Balance</th>
                 <th>Status</th>
+                <% if (['admin','super_admin','teller'].includes(user.role)) { %>
+                <th></th>
+                <% } %>
               </tr>
             </thead>
             <tbody>
@@ -330,8 +400,116 @@
                   <span class="balance-val">$<%= fmt(txn.balanceAfter) %></span>
                 </td>
                 <td>
+                  <% if (txn.pendingEdit && txn.pendingEdit.editStatus === 'pending') { %>
+                  <span class="approval-badge approval-pending">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit Pending
+                  </span>
+                  <% } else if (txn.requiresApproval && txn.approvalStatus !== 'na') { %>
+                  <span class="approval-badge approval-<%= txn.approvalStatus %>">
+                    <% if (txn.approvalStatus === 'pending') { %>
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Pending
+                    <% } else if (txn.approvalStatus === 'approved') { %>
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    Approved
+                    <% } else { %>
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Rejected
+                    <% } %>
+                  </span>
+                  <% } else { %>
                   <span class="txn-status txn-status-<%= txn.status %>"><%= txn.status %></span>
+                  <% } %>
                 </td>
+                <% if (['admin','super_admin','teller'].includes(user.role)) { %>
+                <td class="txn-actions-cell">
+                  <div class="txn-row-actions">
+                    <% if (txn.pendingEdit && txn.pendingEdit.editStatus === 'pending' && ['admin','super_admin'].includes(user.role)) { %>
+                    <!-- Admin inline approve/reject edit request -->
+                    <form action="/transactions/<%= txn._id %>/approve-edit" method="POST" style="display:inline"
+                          onsubmit="return confirm('Approve this edit? The transaction and balance will be updated.')">
+                      <button type="submit" class="btn-txn-approve" title="Approve Edit">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                    </form>
+                    <button type="button" class="btn-txn-delete" title="Reject Edit"
+                            data-txn-id="<%= txn._id %>" data-desc="<%= txn.description %>"
+                            data-route="edit"
+                            onclick="openRejectModal(this.dataset.txnId, this.dataset.desc, this.dataset.route)">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                    <% } else if (txn.requiresApproval && txn.approvalStatus === 'pending' && ['admin','super_admin'].includes(user.role)) { %>
+                    <!-- Admin inline approve/reject new transaction request -->
+                    <form action="/transactions/<%= txn._id %>/approve" method="POST" style="display:inline"
+                          onsubmit="return confirm('Approve this request? The balance will be updated.')">
+                      <button type="submit" class="btn-txn-approve" title="Approve">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                    </form>
+                    <button type="button" class="btn-txn-delete" title="Reject"
+                            data-txn-id="<%= txn._id %>" data-desc="<%= txn.description %>"
+                            onclick="openRejectModal(this.dataset.txnId, this.dataset.desc)">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                    <% } else { %>
+                    <%
+                      const isAdminUser  = ['admin','super_admin'].includes(user.role);
+                      const withinDay    = (Date.now() - new Date(txn.createdAt).getTime()) < 86400000;
+                      const ownPending   = txn.requiresApproval && txn.approvalStatus === 'pending' && String(txn.requestedBy) === String(user.id);
+                      const ownEditPend  = txn.pendingEdit?.editStatus === 'pending' && String(txn.pendingEdit?.requestedBy) === String(user.id);
+                      const isTellerUser = user.role === 'teller';
+                      // Tellers can directly edit: own pending requests, or completed txns within 24h
+                      const canEdit      = isAdminUser || ownPending || (!txn.requiresApproval && withinDay);
+                      // Tellers can request an edit for completed txns older than 24h (not already pending)
+                      const canReqEdit   = isTellerUser && !withinDay && !txn.requiresApproval && !ownEditPend && !ownPending;
+                    %>
+                    <% if (ownEditPend) { %>
+                    <a href="/clients/<%= client._id %>/transactions/<%= txn._id %>/edit"
+                       class="btn-txn-edit" title="Update Edit Request">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </a>
+                    <% } else if (canEdit) { %>
+                    <a href="/clients/<%= client._id %>/transactions/<%= txn._id %>/edit"
+                       class="btn-txn-edit" title="Edit">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </a>
+                    <% } else if (canReqEdit) { %>
+                    <a href="/clients/<%= client._id %>/transactions/<%= txn._id %>/edit"
+                       class="btn-txn-edit btn-req-edit" title="Request Edit">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </a>
+                    <% } %>
+                    <% } %>
+                    <% if (user.role === 'super_admin') { %>
+                    <form action="/clients/<%= client._id %>/transactions/<%= txn._id %>/delete"
+                          method="POST" style="display:inline"
+                          onsubmit="return confirm('Delete this transaction? The account balance will be adjusted.')">
+                      <button type="submit" class="btn-txn-delete" title="Delete">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          <path d="M10 11v6"/><path d="M14 11v6"/>
+                        </svg>
+                      </button>
+                    </form>
+                    <% } %>
+                  </div>
+                </td>
+                <% } %>
               </tr>
               <% }) %>
             </tbody>
@@ -359,6 +537,57 @@
       row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
     });
   }
+
+  function openRejectModal(txnId, desc, route) {
+    document.getElementById('rejectTxnId').value  = txnId;
+    document.getElementById('rejectDesc').textContent = desc;
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('rejectForm').dataset.route = route || '';
+    document.getElementById('rejectModal').classList.add('open');
+  }
+  function closeRejectModal() {
+    document.getElementById('rejectModal').classList.remove('open');
+  }
+  document.getElementById('rejectModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+  });
+</script>
+
+<!-- Reject modal -->
+<div id="rejectModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Reject Request</h3>
+      <button class="modal-close" onclick="closeRejectModal()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <p class="modal-desc">Rejecting: <strong id="rejectDesc"></strong></p>
+    <form id="rejectForm" method="POST">
+      <input type="hidden" name="_txnId" id="rejectTxnId">
+      <div class="form-group" style="margin-bottom:1rem">
+        <label for="rejectReason" style="font-size:.85rem;font-weight:600;color:#374151">Reason <span class="req">*</span></label>
+        <textarea id="rejectReason" name="reason" rows="3"
+          placeholder="Explain why this request is being rejected…"
+          style="width:100%;resize:vertical;padding:.625rem .75rem;border:1.5px solid #e2e8f0;border-radius:.5rem;font-size:.875rem;font-family:inherit"
+          required></textarea>
+      </div>
+      <div style="display:flex;gap:.75rem;justify-content:flex-end">
+        <button type="button" onclick="closeRejectModal()" class="btn-cancel-form">Cancel</button>
+        <button type="submit" class="btn-delete">Reject Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.getElementById('rejectForm')?.addEventListener('submit', function() {
+    const id    = document.getElementById('rejectTxnId').value;
+    const route = this.dataset.route === 'edit' ? 'reject-edit' : 'reject';
+    this.action = '/transactions/' + id + '/' + route;
+  });
 </script>
 </body>
 </html>

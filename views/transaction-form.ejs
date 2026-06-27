@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cone — <%= isEdit ? 'Edit Transaction' : 'New Transaction' %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/client.css">
+  <link rel="stylesheet" href="/css/form.css">
+  <style>
+    .type-toggle { display: flex; gap: 0; }
+    .type-toggle input[type="radio"] { display: none; }
+    .type-toggle label {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      gap: .4rem; padding: .7rem 1rem; border: 1.5px solid #e2e8f0;
+      font-size: .9rem; font-weight: 600; cursor: pointer;
+      transition: all .15s; background: #fff; color: #64748b;
+    }
+    .type-toggle label:first-of-type  { border-radius: .625rem 0 0 .625rem; border-right-width: .75px; }
+    .type-toggle label:last-of-type   { border-radius: 0 .625rem .625rem 0; border-left-width: .75px; }
+    .type-toggle input[value="credit"]:checked + label {
+      background: #ecfdf5; border-color: #059669; color: #059669;
+      box-shadow: 0 0 0 3px rgba(5,150,105,.1);
+    }
+    .type-toggle input[value="debit"]:checked + label {
+      background: #fff1f2; border-color: #e11d48; color: #e11d48;
+      box-shadow: 0 0 0 3px rgba(225,29,72,.1);
+    }
+    .type-toggle label:hover { background: #f8fafc; }
+    .type-toggle input:checked + label:hover { background: inherit; }
+
+    .request-notice {
+      display: none;
+      align-items: flex-start; gap: .75rem;
+      padding: .875rem 1rem; border-radius: .625rem;
+      background: #fffbeb; border: 1.5px solid #f59e0b;
+      color: #92400e; font-size: .875rem; line-height: 1.5;
+      margin-bottom: .5rem;
+    }
+    .request-notice.visible { display: flex; }
+    .request-notice svg { flex-shrink: 0; margin-top: .1rem; color: #d97706; }
+    .request-notice strong { display: block; font-weight: 600; color: #78350f; margin-bottom: .2rem; }
+  </style>
+</head>
+<body>
+<%
+  const roleLabels         = { super_admin: 'Super Admin', admin: 'Admin', teller: 'Teller' };
+  const isTeller           = user.role === 'teller';
+  const approvalCategories = ['withdrawal', 'loan', 'transfer'];
+
+  const val = (field, fallback = '') =>
+    txn[field] !== undefined && txn[field] !== null ? txn[field] : fallback;
+  const sel = (field, value) => String(val(field)) === String(value) ? 'selected' : '';
+
+  const txnType      = val('type', 'credit');
+  const txnCategory  = val('category', 'deposit');
+
+  // For tellers editing a pending request
+  const isPendingRequest = isEdit && txn.requiresApproval && txn.approvalStatus === 'pending';
+%>
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 40 40" width="26" height="26" fill="none">
+        <polygon points="20,3 38,37 2,37" fill="#6366f1"/>
+      </svg>
+      <span class="logo-text">CONE</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/clients" class="nav-link active">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Clients
+      </a>
+      <a href="/transactions" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="17" y1="7" x2="7" y2="7"/>
+          <polyline points="14 4 17 7 14 10"/>
+          <line x1="7" y1="17" x2="17" y2="17"/>
+          <polyline points="10 14 7 17 10 20"/>
+        </svg>
+        Transactions
+      </a>
+      <% if (!isTeller) { %>
+      <a href="/requests" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Requests
+      </a>
+      <a href="/users" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+        </svg>
+        Staff
+      </a>
+      <a href="/logs" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Logs
+      </a>
+      <% } %>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar"><%= user.name[0].toUpperCase() %></div>
+      <div class="user-info">
+        <div class="user-name"><%= user.name %></div>
+        <span class="role-badge <%= user.role %>"><%= roleLabels[user.role] || user.role %></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ──────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-breadcrumb">
+        <a href="/dashboard" class="back-link">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          Dashboard
+        </a>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+        <a href="/clients/<%= client._id %>" class="back-link"><%= client.name %></a>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+        <span class="breadcrumb-current"><%= isEdit ? (isPendingRequest ? 'Edit Request' : 'Edit Transaction') : 'New Transaction' %></span>
+      </div>
+      <a href="/clients/<%= client._id %>" class="btn-cancel">Cancel</a>
+    </header>
+
+    <div class="page-content">
+      <div class="form-page-wrap">
+
+        <!-- Page title -->
+        <div class="form-page-header">
+          <div class="form-page-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="form-page-title"><%= isEdit ? (isPendingRequest ? 'Edit Request' : 'Edit Transaction') : 'New Transaction' %></h1>
+            <p class="form-page-sub">
+              <% if (isEdit) { %>
+                Update details for this <%= isPendingRequest ? 'pending request' : 'transaction' %> on <strong><%= client.name %></strong>'s account.
+              <% } else { %>
+                Record a transaction on <strong><%= client.name %></strong>'s account
+                (current balance: <strong>$<%= Number(client.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></strong>).
+              <% } %>
+            </p>
+          </div>
+        </div>
+
+        <!-- Validation errors -->
+        <% if (errors && errors.length) { %>
+        <div class="form-errors">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" class="form-errors-icon">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+          </svg>
+          <div>
+            <strong>Please fix the following:</strong>
+            <ul>
+              <% errors.forEach(e => { %><li><%= e %></li><% }) %>
+            </ul>
+          </div>
+        </div>
+        <% } %>
+
+        <!-- Edit request notice for tellers on old transactions -->
+        <% if (isEditRequest) { %>
+        <div class="request-notice visible">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+          </svg>
+          <div>
+            <strong><%= hasPendingEdit ? 'Update Your Pending Edit Request' : 'Requires Admin Approval' %></strong>
+            <%= hasPendingEdit
+              ? 'An edit request for this transaction is already pending. Submitting again will update it.'
+              : 'This transaction is older than 24 hours. Your changes will be submitted as an edit request for admin approval — the transaction will not change until approved.' %>
+          </div>
+        </div>
+        <% } %>
+
+        <!-- New-transaction approval notice for tellers -->
+        <% if (isTeller && !isEditRequest) { %>
+        <div class="request-notice" id="requestNotice" data-approval-cats='<%= JSON.stringify(approvalCategories) %>'>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+          </svg>
+          <div>
+            <strong>Requires Admin Approval</strong>
+            This will be submitted as a request. An admin or super admin must approve it before the transaction is posted to the account.
+          </div>
+        </div>
+        <% } %>
+
+        <!-- Form -->
+        <form
+          action="<%= isEdit
+            ? `/clients/${client._id}/transactions/${txn._id}`
+            : `/clients/${client._id}/transactions` %>"
+          method="POST"
+          class="client-form"
+          novalidate
+        >
+
+          <!-- Section: Transaction Type & Amount -->
+          <div class="form-section">
+            <div class="form-section-label">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+              Transaction Details
+            </div>
+            <div class="form-grid">
+
+              <!-- Type toggle -->
+              <div class="form-group form-col-full">
+                <label>Type <span class="req">*</span></label>
+                <div class="type-toggle">
+                  <input type="radio" id="type-credit" name="type" value="credit"
+                    <%= txnType === 'credit' ? 'checked' : '' %>>
+                  <label for="type-credit">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                    </svg>
+                    Credit (Money In)
+                  </label>
+                  <input type="radio" id="type-debit" name="type" value="debit"
+                    <%= txnType === 'debit' ? 'checked' : '' %>>
+                  <label for="type-debit">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+                    </svg>
+                    Debit (Money Out)
+                  </label>
+                </div>
+              </div>
+
+              <!-- Amount -->
+              <div class="form-group">
+                <label for="amount">Amount <span class="req">*</span></label>
+                <div class="input-with-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                  <input type="number" id="amount" name="amount"
+                         value="<%= val('amount') %>"
+                         min="0.01" step="0.01"
+                         placeholder="0.00"
+                         style="font-variant-numeric: tabular-nums;"
+                         required>
+                </div>
+              </div>
+
+              <!-- Category -->
+              <div class="form-group">
+                <label for="category">Category <span class="req">*</span></label>
+                <div class="select-wrap">
+                  <select id="category" name="category" required>
+                    <option value="deposit"    <%= sel('category', 'deposit')    %>>Deposit</option>
+                    <option value="withdrawal" <%= sel('category', 'withdrawal') %>>Withdrawal</option>
+                    <option value="loan"       <%= sel('category', 'loan')       %>>Loan</option>
+                    <option value="transfer"   <%= sel('category', 'transfer')   %>>Transfer</option>
+                    <option value="payment"    <%= sel('category', 'payment')    %>>Payment</option>
+                    <option value="fee"        <%= sel('category', 'fee')        %>>Fee</option>
+                    <option value="interest"   <%= sel('category', 'interest')   %>>Interest</option>
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" class="select-chevron">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div class="form-group form-col-full">
+                <label for="description">Description <span class="req">*</span></label>
+                <input type="text" id="description" name="description"
+                       value="<%= val('description') %>"
+                       placeholder="e.g. Monthly salary deposit"
+                       required autocomplete="off">
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Section: Status & Reference -->
+          <div class="form-section">
+            <div class="form-section-label">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Status &amp; Reference
+            </div>
+            <div class="form-grid">
+
+              <!-- Status (hidden for teller approval-category requests) -->
+              <% if (!isTeller) { %>
+              <div class="form-group">
+                <label for="status">Status <span class="req">*</span></label>
+                <div class="select-wrap">
+                  <select id="status" name="status" required>
+                    <option value="completed" <%= sel('status', 'completed') %>>Completed</option>
+                    <option value="pending"   <%= sel('status', 'pending')   %>>Pending</option>
+                    <option value="failed"    <%= sel('status', 'failed')    %>>Failed</option>
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" class="select-chevron">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+              </div>
+              <% } else { %>
+              <!-- Teller: status is auto-set by server based on category -->
+              <input type="hidden" name="status" value="completed">
+              <% } %>
+
+              <!-- Reference -->
+              <div class="form-group form-col-full">
+                <label for="reference">Reference</label>
+                <input type="text" id="reference" name="reference"
+                       value="<%= val('reference') %>"
+                       placeholder="Auto-generated if left blank"
+                       style="font-family: monospace; letter-spacing: .04em;"
+                       autocomplete="off">
+                <span class="field-hint">Format: TXN-YYYYMMDD-XXXX. Leave blank to auto-generate.</span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <a href="/clients/<%= client._id %>" class="btn-cancel-form">Cancel</a>
+            <button type="submit" class="btn-save" id="submitBtn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <% if (isEdit) { %>
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                <% } else { %>
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                <% } %>
+              </svg>
+              <span id="submitLabel"><%=
+                isEditRequest ? (hasPendingEdit ? 'Update Edit Request' : 'Submit Edit Request') :
+                isEdit ? 'Save Changes' : 'Record Transaction'
+              %></span>
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (isTeller && !isEditRequest) { %>
+<script>
+  const notice       = document.getElementById('requestNotice');
+  const categoryEl   = document.getElementById('category');
+  const submitLabel  = document.getElementById('submitLabel');
+  const approvalCats = JSON.parse(notice.dataset.approvalCats);
+
+  function updateNotice() {
+    const cat       = categoryEl.value;
+    const isRequest = approvalCats.includes(cat);
+    notice.classList.toggle('visible', isRequest);
+    if (!<%= isEdit %>) {
+      submitLabel.textContent = isRequest ? 'Submit Request' : 'Record Transaction';
+    }
+  }
+
+  categoryEl.addEventListener('change', updateNotice);
+  updateNotice();
+</script>
+<% } %>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cone — Requests</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/client.css">
+</head>
+<body>
+<%
+  const roleLabels = { super_admin: 'Super Admin', admin: 'Admin', teller: 'Teller' };
+  const fmt      = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtDate  = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtTime  = d => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+%>
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 40 40" width="26" height="26" fill="none">
+        <polygon points="20,3 38,37 2,37" fill="#6366f1"/>
+      </svg>
+      <span class="logo-text">CONE</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/clients" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Clients
+      </a>
+      <a href="/transactions" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="17" y1="7" x2="7" y2="7"/>
+          <polyline points="14 4 17 7 14 10"/>
+          <line x1="7" y1="17" x2="17" y2="17"/>
+          <polyline points="10 14 7 17 10 20"/>
+        </svg>
+        Transactions
+      </a>
+      <a href="/requests" class="nav-link active">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Requests
+        <% if ((pendingCount + pendingEditCount + pendingClientCount) > 0) { %>
+        <span class="sidebar-badge"><%= pendingCount + pendingEditCount + pendingClientCount %></span>
+        <% } %>
+      </a>
+      <a href="/users" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+        </svg>
+        Staff
+      </a>
+      <a href="/logs" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Logs
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar"><%= user.name[0].toUpperCase() %></div>
+      <div class="user-info">
+        <div class="user-name"><%= user.name %></div>
+        <span class="role-badge <%= user.role %>"><%= roleLabels[user.role] || user.role %></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ──────────────────────────── -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-breadcrumb">
+        <a href="/dashboard" class="back-link">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          Dashboard
+        </a>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+        <span class="breadcrumb-current">Requests</span>
+      </div>
+      <form action="/logout" method="POST">
+        <button type="submit" class="btn-logout">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sign out
+        </button>
+      </form>
+    </header>
+
+    <div class="page-content">
+
+      <% if (flash) { %>
+      <div class="flash flash-<%= flash.type %>">
+        <% if (flash.type === 'success') { %>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <% } else { %>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
+        <% } %>
+        <%= flash.message %>
+      </div>
+      <% } %>
+
+      <div class="table-card">
+        <div class="table-header">
+          <div class="txn-header-left">
+            <h3>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:middle;margin-right:.4rem">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              Approval Requests
+            </h3>
+            <div class="period-tabs">
+              <a href="?tab=pending"  class="period-tab <%- tab === 'pending'  ? 'active' : '' %>">
+                Pending <% if (pendingCount > 0) { %><span class="tab-count"><%= pendingCount %></span><% } %>
+              </a>
+              <a href="?tab=approved" class="period-tab <%- tab === 'approved' ? 'active' : '' %>">Approved</a>
+              <a href="?tab=rejected" class="period-tab <%- tab === 'rejected' ? 'active' : '' %>">Rejected</a>
+              <a href="?tab=edits"    class="period-tab <%- tab === 'edits'    ? 'active' : '' %>">
+                Edits <% if (pendingEditCount > 0) { %><span class="tab-count"><%= pendingEditCount %></span><% } %>
+              </a>
+              <a href="?tab=accounts" class="period-tab <%- tab === 'accounts' ? 'active' : '' %>">
+                New Accounts <% if (pendingClientCount > 0) { %><span class="tab-count"><%= pendingClientCount %></span><% } %>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <% if (tab === 'accounts') { %>
+          <% if (!requests || requests.length === 0) { %>
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <p>No pending account registrations.</p>
+          </div>
+          <% } else { %>
+          <div class="table-wrapper">
+            <table class="clients-table txn-table">
+              <thead>
+                <tr>
+                  <th>Submitted</th>
+                  <th>Client Name</th>
+                  <th>Account #</th>
+                  <th>Type</th>
+                  <th class="col-right">Opening Balance</th>
+                  <th>Requested By</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% requests.forEach(c => { %>
+                <tr>
+                  <td class="date-cell">
+                    <div class="txn-date"><%= fmtDate(c.createdAt) %></div>
+                    <div class="txn-time"><%= fmtTime(c.createdAt) %></div>
+                  </td>
+                  <td>
+                    <a href="/clients/<%= c._id %>" class="client-name" style="text-decoration:none"><%= c.name %></a>
+                    <% if (c.email) { %><div class="txn-time"><%= c.email %></div><% } %>
+                  </td>
+                  <td style="font-variant-numeric:tabular-nums"><code><%= c.accountNumber %></code></td>
+                  <td><span class="type-badge <%= c.accountType %>"><%= c.accountType %></span></td>
+                  <td class="col-right">$<%= Number(c.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></td>
+                  <td><span class="client-name"><%= c.requestedBy?.name || '—' %></span></td>
+                  <td>
+                    <% if (c.approvalStatus === 'pending') { %>
+                    <span class="approval-badge approval-pending">
+                      <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      Pending
+                    </span>
+                    <% } else { %>
+                    <div>
+                      <span class="approval-badge approval-rejected">
+                        <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Rejected
+                      </span>
+                      <% if (c.approvedBy?.name) { %>
+                      <div class="txn-time" style="margin-top:.2rem">by <%= c.approvedBy.name %></div>
+                      <% } %>
+                    </div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (c.approvalStatus === 'pending') { %>
+                    <div class="txn-row-actions" style="gap:.5rem">
+                      <form action="/clients/<%= c._id %>/approve" method="POST" style="display:inline"
+                            onsubmit="return confirm('Approve this account registration for <%= c.name %>?')">
+                        <button type="submit" class="btn-approve-full">
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                          Approve
+                        </button>
+                      </form>
+                      <button type="button" class="btn-reject-full"
+                              data-txn-id="<%= c._id %>"
+                              data-desc="<%= c.name %> (<%= c.accountNumber %>)"
+                              data-route="client"
+                              onclick="openRejectModal(this.dataset.txnId, this.dataset.desc, this.dataset.route)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                        Reject
+                      </button>
+                    </div>
+                    <% } else { %>
+                    <span style="font-size:.8rem;color:#94a3b8"><%= c.rejectionReason || '—' %></span>
+                    <% } %>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer-bar">
+            <span class="txn-count-label"><strong><%= requests.length %></strong> registration<%= requests.length !== 1 ? 's' : '' %></span>
+          </div>
+          <% } %>
+        <% } else if (tab === 'edits') { %>
+          <% if (!requests || requests.length === 0) { %>
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <p>No pending edit requests.</p>
+          </div>
+          <% } else { %>
+          <div class="table-wrapper">
+            <table class="clients-table txn-table">
+              <thead>
+                <tr>
+                  <th>Txn Date</th>
+                  <th>Client</th>
+                  <th>Requested By</th>
+                  <th>Current Values</th>
+                  <th>Proposed Changes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% requests.forEach(req => { const e = req.pendingEdit; %>
+                <tr>
+                  <td class="date-cell">
+                    <div class="txn-date"><%= fmtDate(req.date) %></div>
+                    <div class="txn-time"><%= fmtTime(req.date) %></div>
+                  </td>
+                  <td>
+                    <a href="/clients/<%= req.client._id %>" class="client-name" style="text-decoration:none">
+                      <%= req.client.name %>
+                    </a>
+                    <div class="txn-time"><code><%= req.client.accountNumber %></code></div>
+                  </td>
+                  <td>
+                    <span class="client-name"><%= e.requestedBy?.name || '—' %></span>
+                    <div class="txn-time"><%= fmtDate(e.requestedAt) %></div>
+                  </td>
+                  <td style="font-size:.8rem;color:#64748b">
+                    <div><strong>Type:</strong> <%= req.type %></div>
+                    <div><strong>Amount:</strong> $<%= fmt(req.amount) %></div>
+                    <div><strong>Cat:</strong> <%= req.category %></div>
+                    <div><strong>Desc:</strong> <%= req.description %></div>
+                  </td>
+                  <td style="font-size:.8rem">
+                    <% if (e.type !== req.type) { %>
+                    <div><strong>Type:</strong> <span style="color:#7c3aed"><%= e.type %></span></div>
+                    <% } %>
+                    <% if (String(e.amount) !== String(req.amount)) { %>
+                    <div><strong>Amount:</strong> <span style="color:#7c3aed">$<%= fmt(e.amount) %></span></div>
+                    <% } %>
+                    <% if (e.category !== req.category) { %>
+                    <div><strong>Cat:</strong> <span style="color:#7c3aed"><%= e.category %></span></div>
+                    <% } %>
+                    <% if (e.description !== req.description) { %>
+                    <div><strong>Desc:</strong> <span style="color:#7c3aed"><%= e.description %></span></div>
+                    <% } %>
+                    <% if (e.type === req.type && String(e.amount) === String(req.amount) && e.category === req.category && e.description === req.description) { %>
+                    <span style="color:#94a3b8;font-style:italic">No field changes</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="txn-row-actions" style="gap:.5rem">
+                      <form action="/transactions/<%= req._id %>/approve-edit" method="POST" style="display:inline"
+                            onsubmit="return confirm('Approve this edit? The transaction and balance will be updated.')">
+                        <button type="submit" class="btn-approve-full">
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                          Approve
+                        </button>
+                      </form>
+                      <button type="button" class="btn-reject-full"
+                              data-txn-id="<%= req._id %>" data-desc="<%= req.description %>"
+                              data-route="edit"
+                              onclick="openRejectModal(this.dataset.txnId, this.dataset.desc, this.dataset.route)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                        Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer-bar">
+            <span class="txn-count-label"><strong><%= requests.length %></strong> edit request<%= requests.length !== 1 ? 's' : '' %></span>
+          </div>
+          <% } %>
+        <% } else { %>
+        <% if (!requests || requests.length === 0) { %>
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <p>No <%= tab %> requests.</p>
+        </div>
+        <% } else { %>
+        <div class="table-wrapper">
+          <table class="clients-table txn-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Client</th>
+                <th>Requested By</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th class="col-right">Amount</th>
+                <th>Type</th>
+                <% if (tab === 'pending') { %><th>Actions</th><% } %>
+                <% if (tab !== 'pending') { %><th>Processed By</th><th>Status</th><% } %>
+                <% if (tab === 'rejected') { %><th>Reason</th><% } %>
+              </tr>
+            </thead>
+            <tbody>
+              <% requests.forEach(req => { %>
+              <tr>
+                <td class="date-cell">
+                  <div class="txn-date"><%= fmtDate(req.createdAt) %></div>
+                  <div class="txn-time"><%= fmtTime(req.createdAt) %></div>
+                </td>
+                <td>
+                  <a href="/clients/<%= req.client._id %>" class="client-name" style="text-decoration:none">
+                    <%= req.client.name %>
+                  </a>
+                  <div class="txn-time"><code><%= req.client.accountNumber %></code></div>
+                </td>
+                <td><span class="client-name"><%= req.requestedBy?.name || '—' %></span></td>
+                <td><span class="cat-badge cat-<%= req.category %>"><%= req.category %></span></td>
+                <td><span class="txn-desc"><%= req.description %></span></td>
+                <td class="col-right">
+                  <% if (req.type === 'debit') { %>
+                  <span class="amount-debit">−$<%= fmt(req.amount) %></span>
+                  <% } else { %>
+                  <span class="amount-credit">+$<%= fmt(req.amount) %></span>
+                  <% } %>
+                </td>
+                <td>
+                  <span class="txn-status txn-status-<%= req.type %>"><%= req.type %></span>
+                </td>
+                <% if (tab === 'pending') { %>
+                <td>
+                  <div class="txn-row-actions" style="gap:.5rem">
+                    <form action="/transactions/<%= req._id %>/approve" method="POST" style="display:inline"
+                          onsubmit="return confirm('Approve this request? The balance will be updated.')">
+                      <button type="submit" class="btn-approve-full">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Approve
+                      </button>
+                    </form>
+                    <button type="button" class="btn-reject-full"
+                            data-txn-id="<%= req._id %>" data-desc="<%= req.description %>"
+                            onclick="openRejectModal(this.dataset.txnId, this.dataset.desc)">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                      Reject
+                    </button>
+                  </div>
+                </td>
+                <% } %>
+                <% if (tab !== 'pending') { %>
+                <td><span class="client-name"><%= req.approvedBy?.name || '—' %></span></td>
+                <td>
+                  <span class="approval-badge approval-<%= req.approvalStatus %>">
+                    <% if (req.approvalStatus === 'approved') { %>
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    Approved
+                    <% } else { %>
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Rejected
+                    <% } %>
+                  </span>
+                </td>
+                <% } %>
+                <% if (tab === 'rejected') { %>
+                <td style="max-width:200px;font-size:.8rem;color:#64748b"><%= req.rejectionReason || '—' %></td>
+                <% } %>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer-bar">
+          <span class="txn-count-label"><strong><%= requests.length %></strong> request<%= requests.length !== 1 ? 's' : '' %></span>
+        </div>
+        <% } %>
+        <% } %>
+      </div>
+
+    </div><!-- /page-content -->
+  </div><!-- /main-content -->
+</div><!-- /layout -->
+
+<!-- Reject modal -->
+<div id="rejectModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Reject Request</h3>
+      <button class="modal-close" onclick="closeRejectModal()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <p class="modal-desc">Rejecting: <strong id="rejectDesc"></strong></p>
+    <form id="rejectForm" method="POST">
+      <input type="hidden" name="_txnId" id="rejectTxnId">
+      <div class="form-group" style="margin-bottom:1rem">
+        <label for="rejectReason" style="font-size:.85rem;font-weight:600;color:#374151">Reason <span style="color:#e11d48">*</span></label>
+        <textarea id="rejectReason" name="reason" rows="3"
+          placeholder="Explain why this request is being rejected…"
+          style="width:100%;resize:vertical;padding:.625rem .75rem;border:1.5px solid #e2e8f0;border-radius:.5rem;font-size:.875rem;font-family:inherit;box-sizing:border-box"
+          required></textarea>
+      </div>
+      <div style="display:flex;gap:.75rem;justify-content:flex-end">
+        <button type="button" onclick="closeRejectModal()" class="btn-cancel-form">Cancel</button>
+        <button type="submit" class="btn-delete">Reject Request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openRejectModal(txnId, desc, route) {
+    document.getElementById('rejectTxnId').value      = txnId;
+    document.getElementById('rejectDesc').textContent = desc;
+    document.getElementById('rejectReason').value     = '';
+    document.getElementById('rejectForm').dataset.route = route || '';
+    document.getElementById('rejectModal').classList.add('open');
+  }
+  function closeRejectModal() {
+    document.getElementById('rejectModal').classList.remove('open');
+  }
+  document.getElementById('rejectModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+  });
+  document.getElementById('rejectForm').addEventListener('submit', function() {
+    const id    = document.getElementById('rejectTxnId').value;
+    const route = this.dataset.route;
+    if (route === 'client') {
+      this.action = '/clients/' + id + '/reject';
+    } else if (route === 'edit') {
+      this.action = '/transactions/' + id + '/reject-edit';
+    } else {
+      this.action = '/transactions/' + id + '/reject';
+    }
+  });
+</script>
+</body>
+</html>

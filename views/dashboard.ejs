@@ -12,9 +12,20 @@
 <body>
 <%
   const roleLabels = { super_admin: 'Super Admin', admin: 'Admin', teller: 'Teller' };
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const firstName = user.name.split(' ')[0];
+  const hour       = new Date().getHours();
+  const greeting   = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName  = user.name.split(' ')[0];
+  const fmt        = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtK       = n => {
+    n = Number(n);
+    if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+    if (n >= 10000)   return '$' + Math.round(n/1000) + 'K';
+    if (n >= 1000)    return '$' + (n/1000).toFixed(1) + 'K';
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  const fmtDate    = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const fmtTime    = d => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const periodLabels = { day: 'Today', week: 'This Week', month: 'This Month', year: 'This Year' };
 %>
 <div class="layout">
 
@@ -37,7 +48,7 @@
         </svg>
         Dashboard
       </a>
-      <a href="/dashboard" class="nav-link">
+      <a href="/clients" class="nav-link">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
           <circle cx="9" cy="7" r="4"/>
@@ -46,6 +57,42 @@
         </svg>
         Clients
       </a>
+      <a href="/transactions" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="17" y1="7" x2="7" y2="7"/>
+          <polyline points="14 4 17 7 14 10"/>
+          <line x1="7" y1="17" x2="17" y2="17"/>
+          <polyline points="10 14 7 17 10 20"/>
+        </svg>
+        Transactions
+      </a>
+      <% if (['admin','super_admin'].includes(user.role)) { %>
+      <a href="/requests" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Requests
+        <% if (stats.pendingRequests > 0) { %>
+        <span class="sidebar-badge"><%= stats.pendingRequests %></span>
+        <% } %>
+      </a>
+      <a href="/users" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+        </svg>
+        Staff
+      </a>
+      <a href="/logs" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Logs
+      </a>
+      <% } %>
     </nav>
 
     <div class="sidebar-user">
@@ -101,153 +148,393 @@
       </div>
       <% } %>
 
-      <!-- ── Stats ─── -->
-      <div class="stats-grid">
+      <div class="db-grid">
 
-        <% if (user.role === 'teller') { %>
-        <div class="stat-card">
-          <div class="stat-icon indigo">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-            </svg>
-          </div>
-          <div>
-            <div class="stat-value"><%= stats.totalClients %></div>
-            <div class="stat-label">My Clients</div>
+      <% if (user.role === 'teller') { %>
+
+        <!-- ── Period filter ── -->
+        <div class="period-filter-bar">
+          <span class="period-filter-label">Period</span>
+          <div class="period-tabs">
+            <a href="?period=day"   class="period-tab <%= stats.period === 'day'   ? 'active' : '' %>">Today</a>
+            <a href="?period=week"  class="period-tab <%= stats.period === 'week'  ? 'active' : '' %>">This Week</a>
+            <a href="?period=month" class="period-tab <%= stats.period === 'month' ? 'active' : '' %>">This Month</a>
+            <a href="?period=year"  class="period-tab <%= stats.period === 'year'  ? 'active' : '' %>">This Year</a>
           </div>
         </div>
 
-        <% } else { %>
+        <!-- ── Teller KPI cards ── -->
+        <div class="db-kpi-row">
 
-        <div class="stat-card">
-          <div class="stat-icon indigo">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
+          <div class="big-stat-card indigo">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">My Clients</span>
+            </div>
+            <div class="bsc-number"><%= stats.totalClients %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub">assigned accounts</span>
+              <a href="/clients" class="bsc-link">View all →</a>
+            </div>
           </div>
-          <div>
-            <div class="stat-value"><%= stats.totalClients %></div>
-            <div class="stat-label">Total Clients</div>
+
+          <div class="big-stat-card green">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">Credits</span>
+            </div>
+            <div class="bsc-number"><%= fmtK(stats.periodCredits) %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub"><%= periodLabels[stats.period] %></span>
+            </div>
           </div>
+
+          <div class="big-stat-card red">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">Debits</span>
+            </div>
+            <div class="bsc-number"><%= fmtK(stats.periodDebits) %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub"><%= periodLabels[stats.period] %></span>
+            </div>
+          </div>
+
+          <div class="big-stat-card blue">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">Transactions</span>
+            </div>
+            <div class="bsc-number"><%= stats.periodCount %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub"><%= periodLabels[stats.period] %></span>
+              <% if (stats.pendingRequests > 0) { %>
+              <span class="bsc-sub" style="color:#d97706"><%= stats.pendingRequests %> pending</span>
+              <% } %>
+            </div>
+          </div>
+
         </div>
 
-        <div class="stat-card">
-          <div class="stat-icon green">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
+        <!-- ── Teller bottom row: Recent Txns + Todos ── -->
+        <div class="db-teller-row">
+
+          <!-- Recent transactions -->
+          <div class="table-card">
+            <div class="teller-section-header">
+              <h3>Recent Transactions</h3>
+              <span style="font-size:.8rem;color:#94a3b8">Last 10 across your clients</span>
+            </div>
+            <% if (!recentTxns || recentTxns.length === 0) { %>
+            <div class="empty-state" style="padding:3rem 2rem">
+              <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <p>No transactions yet.</p>
+            </div>
+            <% } else { %>
+            <div class="table-wrapper" style="overflow-x:auto">
+              <table class="teller-txn-table">
+                <thead>
+                  <tr>
+                    <th>Date</th><th>Client</th><th>Description</th>
+                    <th>Category</th><th style="text-align:right">Amount</th><th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% recentTxns.forEach(txn => { %>
+                  <tr onclick="window.location='/clients/<%= txn.client._id %>'" style="cursor:pointer">
+                    <td style="white-space:nowrap">
+                      <div style="font-size:.875rem;font-weight:500;color:#0f172a"><%= fmtDate(txn.date) %></div>
+                      <div style="font-size:.75rem;color:#94a3b8"><%= fmtTime(txn.date) %></div>
+                    </td>
+                    <td>
+                      <div style="font-weight:600;color:#0f172a;font-size:.875rem"><%= txn.client.name %></div>
+                      <div style="font-size:.75rem;color:#94a3b8;font-family:monospace"><%= txn.client.accountNumber %></div>
+                    </td>
+                    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151"><%= txn.description %></td>
+                    <td><span class="txn-cat-badge"><%= txn.category %></span></td>
+                    <td style="text-align:right;white-space:nowrap">
+                      <% if (txn.type === 'credit') { %>
+                      <span class="txn-amount-credit">+$<%= fmt(txn.amount) %></span>
+                      <% } else { %>
+                      <span class="txn-amount-debit">−$<%= fmt(txn.amount) %></span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <% if (txn.requiresApproval && txn.approvalStatus !== 'na') { %>
+                      <span class="txn-status-badge <%= txn.approvalStatus === 'approved' ? 'completed' : txn.approvalStatus === 'rejected' ? 'failed' : 'pending' %>"><%= txn.approvalStatus %></span>
+                      <% } else { %>
+                      <span class="txn-status-badge <%= txn.status %>"><%= txn.status %></span>
+                      <% } %>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% } %>
           </div>
-          <div>
-            <div class="stat-value"><%= stats.activeClients %></div>
-            <div class="stat-label">Active Clients</div>
+
+          <!-- Todos placeholder -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              <h3>Tasks &amp; To‑Dos</h3>
+              <span class="cs-badge">
+                <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Soon
+              </span>
+            </div>
+            <div class="panel-body">
+              <div class="td-row"><div class="td-check"></div><div class="sk-lines"><div class="sk-bar w75"></div></div><div class="td-priority" style="background:#fef9c3"></div></div>
+              <div class="td-row"><div class="td-check"></div><div class="sk-lines"><div class="sk-bar w100"></div></div><div class="td-priority" style="background:#fee2e2"></div></div>
+              <div class="td-row"><div class="td-check"></div><div class="sk-lines"><div class="sk-bar w55"></div></div><div class="td-priority"></div></div>
+              <div class="td-row" style="opacity:.45"><div class="td-check" style="background:#f1f5f9;border-color:#f1f5f9"></div><div class="sk-lines"><div class="sk-bar w75"></div></div><div class="td-priority"></div></div>
+              <p class="panel-note">Task management · coming in a future release</p>
+            </div>
           </div>
+
         </div>
 
-        <div class="stat-card">
-          <div class="stat-icon blue">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
-              <line x1="12" y1="1" x2="12" y2="23"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
+      <% } else { %>
+
+        <!-- ── Admin / Super Admin KPI cards ── -->
+        <div class="db-kpi-row">
+
+          <div class="big-stat-card indigo">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">Total Clients</span>
+            </div>
+            <div class="bsc-number"><%= stats.totalClients %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub"><%= stats.activeClients %> active · <%= stats.totalClients - stats.activeClients %> inactive</span>
+              <a href="/clients" class="bsc-link">View all →</a>
+            </div>
           </div>
-          <div>
-            <div class="stat-value">$<%= (stats.totalBalance || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) %></div>
-            <div class="stat-label">Total Balance</div>
+
+          <div class="big-stat-card green">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">Total Balance</span>
+            </div>
+            <div class="bsc-number"><%= fmtK(stats.totalBalance || 0) %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub">across all accounts</span>
+              <a href="/clients" class="bsc-link">Details →</a>
+            </div>
           </div>
+
+          <a href="/requests?tab=pending" class="big-stat-card <%= stats.pendingRequests > 0 ? 'amber' : 'green' %>">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">Pending Requests</span>
+            </div>
+            <div class="bsc-number"><%= stats.pendingRequests || 0 %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub"><%= stats.pendingRequests > 0 ? 'Need attention' : 'All clear' %></span>
+              <span class="bsc-link">Review →</span>
+            </div>
+          </a>
+
+          <% if (user.role === 'super_admin') { %>
+          <div class="big-stat-card purple">
+            <div class="bsc-top">
+              <div class="bsc-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <span class="bsc-kicker">System Users</span>
+            </div>
+            <div class="bsc-number"><%= stats.totalUsers %></div>
+            <div class="bsc-bottom">
+              <span class="bsc-sub">admins &amp; tellers</span>
+              <a href="/users" class="bsc-link">Manage →</a>
+            </div>
+          </div>
+          <% } %>
+
         </div>
 
-        <% if (user.role === 'super_admin') { %>
-        <div class="stat-card">
-          <div class="stat-icon purple">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
+        <!-- ── Chart placeholders ── -->
+        <div class="db-charts-row">
+
+          <!-- Transaction volume bar chart -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <h3>Transaction Volume</h3>
+                <div class="chart-sub">Monthly credits &amp; debits · all accounts</div>
+              </div>
+              <span class="cs-badge">
+                <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Coming soon
+              </span>
+            </div>
+            <div class="chart-body">
+              <svg viewBox="0 0 420 140" width="100%" height="140" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="display:block;border-radius:.5rem;overflow:hidden">
+                <line x1="0" y1="0"   x2="420" y2="0"   stroke="#f8fafc" stroke-width="1"/>
+                <line x1="0" y1="35"  x2="420" y2="35"  stroke="#f1f5f9" stroke-width="1"/>
+                <line x1="0" y1="70"  x2="420" y2="70"  stroke="#f1f5f9" stroke-width="1"/>
+                <line x1="0" y1="105" x2="420" y2="105" stroke="#f1f5f9" stroke-width="1"/>
+                <line x1="0" y1="140" x2="420" y2="140" stroke="#f1f5f9" stroke-width="1"/>
+                <!-- Credits (green bars) -->
+                <rect x="5"   y="80" width="22" height="60"  rx="3" fill="#bbf7d0"/>
+                <rect x="57"  y="45" width="22" height="95"  rx="3" fill="#bbf7d0"/>
+                <rect x="110" y="65" width="22" height="75"  rx="3" fill="#bbf7d0"/>
+                <rect x="162" y="20" width="22" height="120" rx="3" fill="#bbf7d0"/>
+                <rect x="215" y="50" width="22" height="90"  rx="3" fill="#bbf7d0"/>
+                <rect x="267" y="30" width="22" height="110" rx="3" fill="#bbf7d0"/>
+                <rect x="320" y="55" width="22" height="85"  rx="3" fill="#bbf7d0"/>
+                <rect x="372" y="15" width="22" height="125" rx="3" fill="#bbf7d0"/>
+                <!-- Debits (red bars) -->
+                <rect x="29"  y="90" width="22" height="50"  rx="3" fill="#fecaca"/>
+                <rect x="81"  y="70" width="22" height="70"  rx="3" fill="#fecaca"/>
+                <rect x="134" y="75" width="22" height="65"  rx="3" fill="#fecaca"/>
+                <rect x="186" y="45" width="22" height="95"  rx="3" fill="#fecaca"/>
+                <rect x="239" y="65" width="22" height="75"  rx="3" fill="#fecaca"/>
+                <rect x="291" y="55" width="22" height="85"  rx="3" fill="#fecaca"/>
+                <rect x="344" y="70" width="22" height="70"  rx="3" fill="#fecaca"/>
+                <rect x="396" y="40" width="22" height="100" rx="3" fill="#fecaca"/>
+              </svg>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#bbf7d0"></span>Credits</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#fecaca"></span>Debits</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <div class="stat-value"><%= stats.totalUsers %></div>
-            <div class="stat-label">System Users</div>
+
+          <!-- Account type donut chart -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div>
+                <h3>Account Types</h3>
+                <div class="chart-sub">Client distribution</div>
+              </div>
+              <span class="cs-badge">
+                <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Coming soon
+              </span>
+            </div>
+            <div class="chart-body center">
+              <svg viewBox="0 0 140 140" width="130" height="130" style="flex-shrink:0">
+                <circle cx="70" cy="70" r="50" fill="none" stroke="#f1f5f9" stroke-width="22"/>
+                <!-- Savings ~55% → 173 of 314 -->
+                <circle cx="70" cy="70" r="50" fill="none" stroke="#c7d2fe" stroke-width="22"
+                  stroke-dasharray="173 314" stroke-dashoffset="0" transform="rotate(-90 70 70)"/>
+                <!-- Checking ~30% → 94 -->
+                <circle cx="70" cy="70" r="50" fill="none" stroke="#ddd6fe" stroke-width="22"
+                  stroke-dasharray="94 314" stroke-dashoffset="-173" transform="rotate(-90 70 70)"/>
+                <!-- Business ~15% → 47 -->
+                <circle cx="70" cy="70" r="50" fill="none" stroke="#ede9fe" stroke-width="22"
+                  stroke-dasharray="47 314" stroke-dashoffset="-267" transform="rotate(-90 70 70)"/>
+              </svg>
+              <div style="display:flex;flex-direction:column;gap:.625rem;padding-left:.75rem">
+                <span style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;font-weight:600;color:#6b7280">
+                  <span style="width:10px;height:10px;border-radius:50%;background:#c7d2fe;flex-shrink:0"></span>Savings
+                </span>
+                <span style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;font-weight:600;color:#6b7280">
+                  <span style="width:10px;height:10px;border-radius:50%;background:#ddd6fe;flex-shrink:0"></span>Checking
+                </span>
+                <span style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;font-weight:600;color:#6b7280">
+                  <span style="width:10px;height:10px;border-radius:50%;background:#ede9fe;flex-shrink:0"></span>Business
+                </span>
+              </div>
+            </div>
           </div>
+
         </div>
-        <% } %>
 
-        <% } %>
-      </div>
+        <!-- ── Panel row: Live feed + Todos ── -->
+        <div class="db-panels-row">
 
-      <!-- ── Clients Table ─── -->
-      <div class="table-card">
-        <div class="table-header">
-          <h3>Client Records</h3>
-          <div class="table-search">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" placeholder="Search clients…" oninput="filterTable(this.value)">
+          <!-- Live Activity Feed -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="live-dot"></div>
+              <h3>Live Activity</h3>
+              <span class="cs-badge">
+                <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Coming soon
+              </span>
+            </div>
+            <div class="panel-body">
+              <div class="sk-row"><div class="sk-dot g"></div><div class="sk-lines"><div class="sk-bar w75"></div><div class="sk-bar w35"></div></div><div class="sk-ts"></div></div>
+              <div class="sk-row"><div class="sk-dot a"></div><div class="sk-lines"><div class="sk-bar w100"></div><div class="sk-bar w55"></div></div><div class="sk-ts"></div></div>
+              <div class="sk-row"><div class="sk-dot v"></div><div class="sk-lines"><div class="sk-bar w55"></div><div class="sk-bar w35"></div></div><div class="sk-ts"></div></div>
+              <div class="sk-row"><div class="sk-dot b"></div><div class="sk-lines"><div class="sk-bar w75"></div><div class="sk-bar w55"></div></div><div class="sk-ts"></div></div>
+              <div class="sk-row"><div class="sk-dot g"></div><div class="sk-lines"><div class="sk-bar w100"></div><div class="sk-bar w35"></div></div><div class="sk-ts"></div></div>
+              <p class="panel-note">Real-time activity feed · coming in a future release</p>
+            </div>
           </div>
+
+          <!-- Tasks & To-Dos -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              <h3>Tasks &amp; To‑Dos</h3>
+              <span class="cs-badge">
+                <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Coming soon
+              </span>
+            </div>
+            <div class="panel-body">
+              <div class="td-row"><div class="td-check"></div><div class="sk-lines"><div class="sk-bar w75"></div></div><div class="td-priority" style="background:#fef9c3"></div></div>
+              <div class="td-row"><div class="td-check"></div><div class="sk-lines"><div class="sk-bar w100"></div></div><div class="td-priority" style="background:#fee2e2"></div></div>
+              <div class="td-row"><div class="td-check"></div><div class="sk-lines"><div class="sk-bar w55"></div></div><div class="td-priority"></div></div>
+              <div class="td-row"><div class="td-check"></div><div class="sk-lines"><div class="sk-bar w75"></div></div><div class="td-priority" style="background:#dbeafe"></div></div>
+              <div class="td-row" style="opacity:.4"><div class="td-check" style="background:#f1f5f9;border-color:#f1f5f9"></div><div class="sk-lines"><div class="sk-bar w55"></div></div><div class="td-priority"></div></div>
+              <p class="panel-note">Task management · coming in a future release</p>
+            </div>
+          </div>
+
         </div>
 
-        <% if (!clients || clients.length === 0) { %>
-        <div class="empty-state">
-          <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="1">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-          </svg>
-          <p>No client records found.</p>
-        </div>
-        <% } else { %>
-        <div class="table-wrapper">
-          <table class="clients-table" id="clientsTable">
-            <thead>
-              <tr>
-                <th>Client</th>
-                <th>Account #</th>
-                <th>Type</th>
-                <th>Balance</th>
-                <th>Status</th>
-                <% if (user.role !== 'teller') { %><th>Assigned Teller</th><% } %>
-              </tr>
-            </thead>
-            <tbody>
-              <% clients.forEach(client => { %>
-              <tr class="clickable-row" onclick="window.location='/clients/<%= client._id %>'">
-                <td>
-                  <div class="client-name"><%= client.name %></div>
-                  <div class="client-email"><%= client.email || '—' %></div>
-                </td>
-                <td style="font-variant-numeric:tabular-nums"><%= client.accountNumber %></td>
-                <td><span class="type-badge <%= client.accountType %>"><%= client.accountType %></span></td>
-                <td class="balance">$<%= client.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
-                <td><span class="status-badge <%= client.status %>"><%= client.status %></span></td>
-                <% if (user.role !== 'teller') { %>
-                <td style="color:#6b7280;font-size:.85rem">
-                  <%= client.assignedTeller ? client.assignedTeller.name : '—' %>
-                </td>
-                <% } %>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } %>
-      </div>
+      <% } %>
 
+      </div><!-- /db-grid -->
     </div>
   </div>
 </div>
-
-<script>
-  function filterTable(q) {
-    const rows = document.querySelectorAll('#clientsTable tbody tr');
-    const term = q.toLowerCase();
-    rows.forEach(row => {
-      row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
-    });
-  }
-</script>
 </body>
 </html>

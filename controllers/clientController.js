@@ -1,6 +1,7 @@
 const Client      = require('../models/Client');
 const Transaction = require('../models/Transaction');
 const User        = require('../models/User');
+const logActivity = require('../utils/logActivity');
 
 const VALID_RANGES = ['30', '90', '365', 'all'];
 
@@ -74,13 +75,15 @@ const clientDetail = async (req, res) => {
 /* ── CREATE: show form ───────────────────────── */
 const newClientForm = async (req, res) => {
   try {
-    const tellers = await getTellers();
+    const isTeller = req.session.user.role === 'teller';
+    const tellers  = isTeller ? [] : await getTellers();
     res.render('client-form', {
       user: req.session.user,
       tellers,
       client:  {},
       errors:  [],
       isEdit:  false,
+      isTeller,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -89,6 +92,8 @@ const newClientForm = async (req, res) => {
 
 /* ── CREATE: handle POST ─────────────────────── */
 const createClient = async (req, res) => {
+  const { role, id: userId } = req.session.user;
+  const isTeller = role === 'teller';
   const errors = validate(req.body);
   try {
     // Unique account number check
@@ -98,9 +103,9 @@ const createClient = async (req, res) => {
     }
 
     if (errors.length) {
-      const tellers = await getTellers();
+      const tellers = isTeller ? [] : await getTellers();
       return res.status(422).render('client-form', {
-        user: req.session.user, tellers, client: req.body, errors, isEdit: false,
+        user: req.session.user, tellers, client: req.body, errors, isEdit: false, isTeller,
       });
     }
 
@@ -111,17 +116,22 @@ const createClient = async (req, res) => {
       accountNumber:  req.body.accountNumber.trim().toUpperCase(),
       accountType:    req.body.accountType,
       balance:        parseFloat(req.body.balance) || 0,
-      status:         req.body.status || 'active',
-      assignedTeller: req.body.assignedTeller || undefined,
+      status:         isTeller ? 'inactive' : (req.body.status || 'active'),
+      assignedTeller: isTeller ? userId : (req.body.assignedTeller || undefined),
+      approvalStatus: isTeller ? 'pending' : 'approved',
+      requestedBy:    isTeller ? userId : undefined,
     });
 
-    req.session.flash = { type: 'success', message: `Client "${client.name}" created successfully.` };
+    await logActivity(req, 'CLIENT_CREATE', 'client', `${isTeller ? 'Submitted' : 'Created'} client account for ${client.name}`, { accountNumber: client.accountNumber, balance: client.balance }, client._id);
+    req.session.flash = isTeller
+      ? { type: 'success', message: `Account for "${client.name}" submitted — awaiting admin approval.` }
+      : { type: 'success', message: `Client "${client.name}" created successfully.` };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
-    const tellers = await getTellers();
+    const tellers = isTeller ? [] : await getTellers();
     res.status(500).render('client-form', {
       user: req.session.user, tellers, client: req.body,
-      errors: [err.message], isEdit: false,
+      errors: [err.message], isEdit: false, isTeller,
     });
   }
 };
@@ -176,6 +186,7 @@ const updateClient = async (req, res) => {
       assignedTeller: req.body.assignedTeller || undefined,
     }, { runValidators: true });
 
+    await logActivity(req, 'CLIENT_UPDATE', 'client', `Updated client account for ${req.body.name.trim()}`, { accountNumber: req.body.accountNumber }, req.params.id);
     req.session.flash = { type: 'success', message: 'Client updated successfully.' };
     res.redirect(303, `/clients/${req.params.id}`);
   } catch (err) {
@@ -191,10 +202,12 @@ const updateClient = async (req, res) => {
 /* ── DELETE ──────────────────────────────────── */
 const deleteClient = async (req, res) => {
   try {
+    const deleted = await Client.findById(req.params.id).lean();
     await Promise.all([
       Client.findByIdAndDelete(req.params.id),
       Transaction.deleteMany({ client: req.params.id }),
     ]);
+    await logActivity(req, 'CLIENT_DELETE', 'client', `Deleted client account for ${deleted?.name || req.params.id}`, { accountNumber: deleted?.accountNumber });
     req.session.flash = { type: 'success', message: 'Client and all associated records deleted.' };
     res.redirect(303, '/dashboard');
   } catch (err) {
@@ -203,4 +216,69 @@ const deleteClient = async (req, res) => {
   }
 };
 
-module.exports = { clientDetail, newClientForm, createClient, editClientForm, updateClient, deleteClient };
+/* ── APPROVE: client registration ───────────── */
+const approveClient = async (req, res) => {
+  try {
+    const client = await Client.findOne({ _id: req.params.id, approvalStatus: 'pending' });
+    if (!client) {
+      req.session.flash = { type: 'error', message: 'Client request not found or already processed.' };
+      return res.redirect(303, '/requests?tab=accounts');
+    }
+
+    client.approvalStatus = 'approved';
+    client.status         = 'active';
+    client.approvedBy     = req.session.user.id;
+    await client.save();
+
+    await logActivity(req, 'CLIENT_APPROVE', 'client', `Approved new client account for ${client.name}`, { accountNumber: client.accountNumber }, client._id);
+    req.session.flash = { type: 'success', message: `"${client.name}" approved — account is now active.` };
+    res.redirect(303, `/clients/${client._id}`);
+  } catch (err) {
+    req.session.flash = { type: 'error', message: err.message };
+    res.redirect(303, '/requests?tab=accounts');
+  }
+};
+
+/* ── REJECT: client registration ─────────────── */
+const rejectClient = async (req, res) => {
+  try {
+    const client = await Client.findOne({ _id: req.params.id, approvalStatus: 'pending' });
+    if (!client) {
+      req.session.flash = { type: 'error', message: 'Client request not found or already processed.' };
+      return res.redirect(303, '/requests?tab=accounts');
+    }
+
+    client.approvalStatus  = 'rejected';
+    client.approvedBy      = req.session.user.id;
+    client.rejectionReason = req.body.reason?.trim() || 'No reason provided.';
+    await client.save();
+
+    await logActivity(req, 'CLIENT_REJECT', 'client', `Rejected new client account for ${client.name}`, { accountNumber: client.accountNumber, reason: client.rejectionReason }, client._id);
+    req.session.flash = { type: 'success', message: `Registration for "${client.name}" rejected.` };
+    res.redirect(303, '/requests?tab=accounts');
+  } catch (err) {
+    req.session.flash = { type: 'error', message: err.message };
+    res.redirect(303, '/requests?tab=accounts');
+  }
+};
+
+/* ── LIST: all clients ───────────────────────── */
+const listClients = async (req, res) => {
+  const { role, id: userId } = req.session.user;
+  try {
+    const filter = {};
+    if (role === 'teller') filter.assignedTeller = userId;
+
+    const clients = await Client
+      .find(filter)
+      .populate('assignedTeller', 'name')
+      .sort({ name: 1 })
+      .lean();
+
+    res.render('clients', { user: req.session.user, clients });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { listClients, clientDetail, newClientForm, createClient, editClientForm, updateClient, deleteClient, approveClient, rejectClient };

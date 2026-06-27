@@ -288,6 +288,202 @@
 
 .txn-count-label strong { color: #0f172a; font-weight: 600; }
 
+/* ─── Transaction row actions ────────────────── */
+.txn-actions-cell { width: 1%; white-space: nowrap; padding-right: 1rem !important; }
+
+.txn-row-actions {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  opacity: 0;
+  transition: opacity .15s;
+}
+tr:hover .txn-row-actions { opacity: 1; }
+
+.btn-txn-edit,
+.btn-txn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: .35rem;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #94a3b8;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  padding: 0;
+}
+.btn-txn-edit:hover  { border-color: #6366f1; color: #6366f1; background: #eef2ff; }
+.btn-txn-delete:hover { border-color: #fca5a5; color: #dc2626; background: #fff1f2; }
+.btn-req-edit { border-color: #f59e0b; color: #d97706; }
+.btn-req-edit:hover { border-color: #d97706; color: #92400e; background: #fffbeb; }
+
+/* ─── Approval badges ────────────────────────── */
+.approval-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.approval-pending  { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+.approval-approved { background: #ecfdf5; color: #059669; border: 1px solid #6ee7b7; }
+.approval-rejected { background: #fff1f2; color: #e11d48; border: 1px solid #fda4af; }
+
+/* ─── Approve / Reject action buttons ───────── */
+.btn-txn-approve {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: .35rem;
+  border: 1.5px solid #6ee7b7;
+  background: #ecfdf5;
+  color: #059669;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  padding: 0;
+}
+.btn-txn-approve:hover { border-color: #059669; background: #d1fae5; }
+
+.btn-approve-full,
+.btn-reject-full {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .375rem .75rem;
+  border-radius: .5rem;
+  font-size: .8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .15s;
+  border: 1.5px solid;
+}
+.btn-approve-full {
+  background: #ecfdf5; color: #059669; border-color: #6ee7b7;
+}
+.btn-approve-full:hover { background: #d1fae5; border-color: #059669; }
+.btn-reject-full {
+  background: #fff1f2; color: #e11d48; border-color: #fda4af;
+}
+.btn-reject-full:hover { background: #ffe4e6; border-color: #e11d48; }
+
+/* ─── Requests nav link button ───────────────── */
+.btn-requests {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .5rem 1rem;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #e2e8f0;
+  border-radius: .5rem;
+  font-size: .8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .15s;
+}
+.btn-requests:hover { background: #e2e8f0; color: #1e293b; }
+
+/* ─── Sidebar badge ──────────────────────────── */
+.sidebar-badge {
+  margin-left: auto;
+  background: #e11d48;
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: .1rem .45rem;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ─── Tab count pill ─────────────────────────── */
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e11d48;
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: .05rem .4rem;
+  min-width: 16px;
+  margin-left: .3rem;
+}
+
+/* ─── Amber stat icon ────────────────────────── */
+.stat-icon.amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+
+/* ─── Modal overlay ──────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.45);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.modal-overlay.open { display: flex; }
+
+.modal-box {
+  background: #fff;
+  border-radius: .875rem;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(15,23,42,.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+.modal-header h3 { font-size: 1rem; font-weight: 700; color: #0f172a; }
+
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border: none;
+  background: #f1f5f9;
+  border-radius: .4rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all .15s;
+}
+.modal-close:hover { background: #e2e8f0; color: #0f172a; }
+
+.modal-desc {
+  font-size: .875rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+/* ─── Stat card as link ──────────────────────── */
+.stat-card-link { cursor: pointer; }
+.stat-card-link:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(15,23,42,.12); }
+
+/* ─── Loan category badge ────────────────────── */
+.cat-loan { background: #f0fdf4; color: #15803d; }
+
 /* ─── Print styles ───────────────────────────── */
 @media print {
   body { background: #fff; font-size: 11pt; }
@@ -361,4 +557,17 @@
     border: 1px solid currentColor !important;
     background: transparent !important;
   }
+
+  .txn-actions-cell { display: none !important; }
+}
+
+/* ─── Flash auto-dismiss ──────────────────────── */
+@keyframes flashOut {
+  0%   { opacity: 1; max-height: 120px; margin-bottom: 1.25rem; padding: .875rem 1.125rem; }
+  55%  { opacity: 0; max-height: 120px; margin-bottom: 1.25rem; padding: .875rem 1.125rem; }
+  100% { opacity: 0; max-height: 0;     margin-bottom: 0;        padding: 0; }
+}
+.flash {
+  overflow: hidden;
+  animation: flashOut 0.8s ease 5s forwards;
 }
