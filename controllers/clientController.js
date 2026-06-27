@@ -13,11 +13,6 @@ const validate = (body, existingId = null) => {
   if (!body.name?.trim())          errors.push('Full name is required.');
   if (!body.accountNumber?.trim()) errors.push('Account number is required.');
   if (!body.accountType)           errors.push('Account type is required.');
-  if (body.balance === '' || body.balance === undefined || isNaN(Number(body.balance))) {
-    errors.push('A valid opening balance is required.');
-  } else if (Number(body.balance) < 0) {
-    errors.push('Balance cannot be negative.');
-  }
   if (body.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())) {
     errors.push('Email address is not valid.');
   }
@@ -115,14 +110,14 @@ const createClient = async (req, res) => {
       phone:          req.body.phone?.trim()   || undefined,
       accountNumber:  req.body.accountNumber.trim().toUpperCase(),
       accountType:    req.body.accountType,
-      balance:        parseFloat(req.body.balance) || 0,
+      balance:        0,
       status:         isTeller ? 'inactive' : (req.body.status || 'active'),
       assignedTeller: isTeller ? userId : (req.body.assignedTeller || undefined),
       approvalStatus: isTeller ? 'pending' : 'approved',
       requestedBy:    isTeller ? userId : undefined,
     });
 
-    await logActivity(req, 'CLIENT_CREATE', 'client', `${isTeller ? 'Submitted' : 'Created'} client account for ${client.name}`, { accountNumber: client.accountNumber, balance: client.balance }, client._id);
+    await logActivity(req, 'CLIENT_CREATE', 'client', `${isTeller ? 'Submitted' : 'Created'} client account for ${client.name}`, { accountNumber: client.accountNumber }, client._id);
     req.session.flash = isTeller
       ? { type: 'success', message: `Account for "${client.name}" submitted — awaiting admin approval.` }
       : { type: 'success', message: `Client "${client.name}" created successfully.` };
