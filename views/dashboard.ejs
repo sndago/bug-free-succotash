@@ -30,7 +30,7 @@
 <div class="layout">
 
   <!-- ── Sidebar ──────────────────────────────── -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <svg viewBox="0 0 40 40" width="26" height="26" fill="none">
         <polygon points="20,3 38,37 2,37" fill="#6366f1"/>
@@ -541,5 +541,6 @@
   .db-kpi-row, .period-filter-bar { flex-shrink: 0; }
   .db-teller-row { flex: 1; min-height: 0; }
 </style>
+<%- include('partials/mobile-nav') %>
 </body>
 </html>

@@ -233,6 +233,15 @@
 .main-content { height: auto; min-height: 100vh; overflow: visible; }
 .page-content  { overflow: visible; display: block; padding-bottom: 2rem; }
 
+/* ─── Mobile: keep bottom nav space on form pages */
+@media (max-width: 768px) {
+  .page-content { padding-bottom: 80px; }
+
+  .form-page-wrap { padding: 0; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-col-full { grid-column: span 1; }
+}
+
 /* ─── Client detail: edit / delete buttons ───── */
 .client-actions {
   display: flex;
