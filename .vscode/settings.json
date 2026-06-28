@@ -1,0 +1,44 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.wordWrap": "on",
+  "editor.fontSize": 14,
+  "editor.lineHeight": 1.6,
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.renderWhitespace": "boundary",
+  "editor.minimap.enabled": false,
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.colorTheme": "One Dark Pro",
+  "gitlens.hovers.currentLine.over": "line",
+  "indentRainbow.colors": [
+    "rgba(99,102,241,0.12)",
+    "rgba(139,92,246,0.12)",
+    "rgba(59,130,246,0.12)",
+    "rgba(16,185,129,0.12)"
+  ],
+  "better-comments.tags": [
+    { "tag": "!", "color": "#ef4444", "strikethrough": false, "underline": false, "backgroundColor": "transparent", "bold": false, "italic": false },
+    { "tag": "?", "color": "#6366f1", "strikethrough": false, "underline": false, "backgroundColor": "transparent", "bold": false, "italic": false },
+    { "tag": "//", "color": "#64748b", "strikethrough": true, "underline": false, "backgroundColor": "transparent", "bold": false, "italic": false },
+    { "tag": "todo", "color": "#f59e0b", "strikethrough": false, "underline": false, "backgroundColor": "transparent", "bold": false, "italic": true },
+    { "tag": "*", "color": "#10b981", "strikethrough": false, "underline": false, "backgroundColor": "transparent", "bold": true, "italic": false }
+  ],
+  "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+  "errorLens.fontSize": "12",
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}
