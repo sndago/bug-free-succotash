@@ -33,11 +33,29 @@ const txnSchema = new mongoose.Schema({
     approvedAt:      { type: Date },
     rejectionReason: { type: String, trim: true },
   },
+
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date },
+  deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 txnSchema.index({ client: 1, date: -1 });
 txnSchema.index({ approvalStatus: 1, requiresApproval: 1 });
 txnSchema.index({ 'pendingEdit.editStatus': 1 });
+
+txnSchema.pre(/^find/, function (next) {
+  if (!Object.prototype.hasOwnProperty.call(this.getQuery(), 'isDeleted')) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
+
+txnSchema.pre('countDocuments', function (next) {
+  if (!Object.prototype.hasOwnProperty.call(this.getQuery(), 'isDeleted')) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
 
 txnSchema.pre('save', function (next) {
   if (!this.reference) {

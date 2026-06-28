@@ -25,7 +25,7 @@ const listUsers = async (req, res) => {
     // Attach assigned-client counts for tellers
     const tellerIds = users.filter(u => u.role === 'teller').map(u => u._id);
     const counts    = await Client.aggregate([
-      { $match: { assignedTeller: { $in: tellerIds } } },
+      { $match: { assignedTeller: { $in: tellerIds }, isDeleted: { $ne: true } } },
       { $group: { _id: '$assignedTeller', count: { $sum: 1 } } },
     ]);
     const countMap  = Object.fromEntries(counts.map(c => [String(c._id), c.count]));
@@ -195,11 +195,15 @@ const deleteUser = async (req, res) => {
       return res.redirect(303, '/users');
     }
 
-    // Unassign their clients before deleting
+    // Unassign their clients before archiving
     await Client.updateMany({ assignedTeller: target._id }, { $unset: { assignedTeller: '' } });
-    await User.findByIdAndDelete(target._id);
-    await logActivity(req, 'USER_DELETE', 'user', `Deleted ${target.role} account for ${target.name}`, { role: target.role, email: target.email });
-    req.session.flash = { type: 'success', message: `${target.name}'s account has been deleted.` };
+    target.isDeleted = true;
+    target.deletedAt = new Date();
+    target.deletedBy = req.session.user.id;
+    target.isActive  = false;
+    await target.save();
+    await logActivity(req, 'USER_DELETE', 'user', `Archived ${target.role} account for ${target.name}`, { role: target.role, email: target.email });
+    req.session.flash = { type: 'success', message: `${target.name}'s account has been archived and will be permanently deleted after 60 days.` };
     res.redirect(303, '/users');
   } catch (err) {
     req.session.flash = { type: 'error', message: err.message };

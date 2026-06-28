@@ -16,6 +16,8 @@ const { listUsers, newUserForm, createUser,
         editUserForm, updateUser,
         toggleUserActive, deleteUser }                                 = require('../controllers/userController');
 const { listLogs }                                                     = require('../controllers/logController');
+const { listArchive, restoreClient,
+        restoreTransaction, restoreUser }                              = require('../controllers/archiveController');
 const { requireAuth, requireAdmin, requireSuperAdmin }                 = require('../middleware/auth');
 
 router.get('/',    showLogin);
@@ -54,6 +56,12 @@ router.post('/users/:id/delete',   requireSuperAdmin, deleteUser);
 
 // Activity logs — admin and super_admin only
 router.get('/logs', requireAdmin, listLogs);
+
+// Archive — super_admin only
+router.get( '/archive',                               requireSuperAdmin, listArchive);
+router.post('/archive/clients/:id/restore',           requireSuperAdmin, restoreClient);
+router.post('/archive/transactions/:id/restore',      requireSuperAdmin, restoreTransaction);
+router.post('/archive/users/:id/restore',             requireSuperAdmin, restoreUser);
 
 // Approval workflow — admin and super_admin only
 router.get( '/requests',                           requireAdmin, listRequests);

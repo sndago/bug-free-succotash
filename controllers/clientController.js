@@ -40,7 +40,7 @@ const clientDetail = async (req, res) => {
     const [transactions, allTimeSummary] = await Promise.all([
       Transaction.find(txnFilter).sort({ date: -1 }).lean(),
       Transaction.aggregate([
-        { $match: { client: client._id, status: 'completed' } },
+        { $match: { client: client._id, status: 'completed', isDeleted: { $ne: true } } },
         { $group: {
           _id:     null,
           credits: { $sum: { $cond: [{ $eq: ['$type', 'credit'] }, '$amount', 0] } },
@@ -195,16 +195,20 @@ const updateClient = async (req, res) => {
   }
 };
 
-/* ── DELETE ──────────────────────────────────── */
+/* ── DELETE (soft) ───────────────────────────── */
 const deleteClient = async (req, res) => {
   try {
-    const deleted = await Client.findById(req.params.id).lean();
-    await Promise.all([
-      Client.findByIdAndDelete(req.params.id),
-      Transaction.deleteMany({ client: req.params.id }),
-    ]);
-    await logActivity(req, 'CLIENT_DELETE', 'client', `Deleted client account for ${deleted?.name || req.params.id}`, { accountNumber: deleted?.accountNumber });
-    req.session.flash = { type: 'success', message: 'Client and all associated records deleted.' };
+    const client = await Client.findById(req.params.id);
+    if (!client) {
+      req.session.flash = { type: 'error', message: 'Client not found.' };
+      return res.redirect(303, '/dashboard');
+    }
+    client.isDeleted = true;
+    client.deletedAt = new Date();
+    client.deletedBy = req.session.user.id;
+    await client.save();
+    await logActivity(req, 'CLIENT_DELETE', 'client', `Archived client account for ${client.name}`, { accountNumber: client.accountNumber }, client._id);
+    req.session.flash = { type: 'success', message: 'Client archived and will be permanently deleted after 60 days.' };
     res.redirect(303, '/dashboard');
   } catch (err) {
     req.session.flash = { type: 'error', message: err.message };

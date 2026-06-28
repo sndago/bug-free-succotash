@@ -30,7 +30,7 @@ const dashboard = async (req, res) => {
       const [txnSummary, pendingCount, recent] = await Promise.all([
         clientIds.length
           ? Transaction.aggregate([
-              { $match: { client: { $in: clientIds }, date: { $gte: since }, status: 'completed' } },
+              { $match: { client: { $in: clientIds }, date: { $gte: since }, status: 'completed', isDeleted: { $ne: true } } },
               { $group: {
                 _id:     null,
                 credits: { $sum: { $cond: [{ $eq: ['$type', 'credit'] }, '$amount', 0] } },
@@ -65,7 +65,7 @@ const dashboard = async (req, res) => {
         Client.find().populate('assignedTeller', 'name').lean(),
         Client.countDocuments(),
         Client.countDocuments({ status: 'active' }),
-        Client.aggregate([{ $group: { _id: null, total: { $sum: '$balance' } } }]),
+        Client.aggregate([{ $match: { isDeleted: { $ne: true } } }, { $group: { _id: null, total: { $sum: '$balance' } } }]),
         Transaction.countDocuments({ $or: [
           { requiresApproval: true, approvalStatus: 'pending' },
           { 'pendingEdit.editStatus': 'pending' },

@@ -261,7 +261,7 @@ const updateTransaction = async (req, res) => {
   }
 };
 
-/* ── POST: delete transaction ────────────────── */
+/* ── POST: delete transaction (soft) ─────────── */
 const deleteTransaction = async (req, res) => {
   try {
     const [client, txn] = await Promise.all([
@@ -280,9 +280,12 @@ const deleteTransaction = async (req, res) => {
       await client.save();
     }
 
-    await Transaction.findByIdAndDelete(txn._id);
-    await logActivity(req, 'TXN_DELETE', 'transaction', `Deleted ${txn.category} of $${txn.amount.toFixed(2)} from ${client.name}'s account`, { clientName: client.name, category: txn.category, amount: txn.amount, type: txn.type });
-    req.session.flash = { type: 'success', message: 'Transaction deleted.' };
+    txn.isDeleted = true;
+    txn.deletedAt = new Date();
+    txn.deletedBy = req.session.user.id;
+    await txn.save();
+    await logActivity(req, 'TXN_DELETE', 'transaction', `Archived ${txn.category} of $${txn.amount.toFixed(2)} from ${client.name}'s account`, { clientName: client.name, category: txn.category, amount: txn.amount, type: txn.type });
+    req.session.flash = { type: 'success', message: 'Transaction archived and will be permanently deleted after 60 days.' };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
     req.session.flash = { type: 'error', message: err.message };
@@ -297,11 +300,11 @@ const listRequests = async (req, res) => {
     let requests = [];
 
     if (tab === 'edits') {
-      requests = await Transaction.find({ 'pendingEdit.editStatus': 'pending' })
+      requests = (await Transaction.find({ 'pendingEdit.editStatus': 'pending' })
         .populate('client', 'name accountNumber')
         .populate({ path: 'pendingEdit.requestedBy', select: 'name' })
         .sort({ 'pendingEdit.requestedAt': -1 })
-        .lean();
+        .lean()).filter(r => r.client != null);
     } else if (tab === 'accounts') {
       requests = await Client.find({ approvalStatus: { $in: ['pending', 'rejected'] } })
         .populate('requestedBy', 'name')
@@ -313,12 +316,12 @@ const listRequests = async (req, res) => {
       if (tab === 'pending')  filter.approvalStatus = 'pending';
       if (tab === 'approved') filter.approvalStatus = 'approved';
       if (tab === 'rejected') filter.approvalStatus = 'rejected';
-      requests = await Transaction.find(filter)
+      requests = (await Transaction.find(filter)
         .populate('client', 'name accountNumber balance')
         .populate('requestedBy', 'name')
         .populate('approvedBy', 'name')
         .sort({ createdAt: -1 })
-        .lean();
+        .lean()).filter(r => r.client != null);
     }
 
     const [pendingCount, pendingEditCount, pendingClientCount] = await Promise.all([
@@ -472,12 +475,15 @@ const listTransactions = async (req, res) => {
     if (req.query.category && CATEGORIES.includes(req.query.category)) filter.category = req.query.category;
     if (req.query.status   && STATUSES.includes(req.query.status))     filter.status   = req.query.status;
 
-    const transactions = await Transaction
+    const rawTxns = await Transaction
       .find(filter)
       .populate('client', 'name accountNumber')
       .sort({ date: -1 })
       .limit(200)
       .lean();
+
+    // Exclude transactions whose client was archived (populate returns null for deleted clients)
+    const transactions = rawTxns.filter(t => t.client != null);
 
     res.render('transactions', {
       user: req.session.user,

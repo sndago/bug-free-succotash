@@ -5,9 +5,26 @@ const userSchema = new mongoose.Schema({
   name:     { type: String, required: true, trim: true },
   email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
-  role:     { type: String, enum: ['super_admin', 'admin', 'teller'], default: 'teller' },
-  isActive: { type: Boolean, default: true },
+  role:      { type: String, enum: ['super_admin', 'admin', 'teller'], default: 'teller' },
+  isActive:  { type: Boolean, default: true },
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date },
+  deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
+
+userSchema.pre(/^find/, function (next) {
+  if (!Object.prototype.hasOwnProperty.call(this.getQuery(), 'isDeleted')) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
+
+userSchema.pre('countDocuments', function (next) {
+  if (!Object.prototype.hasOwnProperty.call(this.getQuery(), 'isDeleted')) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
 
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
