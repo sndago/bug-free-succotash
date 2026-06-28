@@ -185,7 +185,9 @@
                 </td>
                 <td class="txn-actions-cell">
                   <form action="/archive/clients/<%= c._id %>/restore" method="POST" style="display:inline"
-                        onsubmit="return confirm('Restore client <%= c.name %>?')">
+                        data-confirm="Restore <%= c.name %>'s account? It will become active again."
+                        data-confirm-title="Restore Client"
+                        data-confirm-ok="Restore">
                     <button type="submit" class="btn-restore" title="Restore">
                       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.48"/>
@@ -257,7 +259,9 @@
                 <td class="txn-actions-cell">
                   <% if (t.client) { %>
                   <form action="/archive/transactions/<%= t._id %>/restore" method="POST" style="display:inline"
-                        onsubmit="return confirm('Restore this <%= t.category %> of <%= fmtMoney(t.amount) %>? The client balance will be updated.')">
+                        data-confirm="Restore this <%= t.category %> of <%= fmtMoney(t.amount) %>? The client balance will be re-applied."
+                        data-confirm-title="Restore Transaction"
+                        data-confirm-ok="Restore">
                     <button type="submit" class="btn-restore" title="Restore">
                       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.48"/>
@@ -326,7 +330,9 @@
                 </td>
                 <td class="txn-actions-cell">
                   <form action="/archive/users/<%= u._id %>/restore" method="POST" style="display:inline"
-                        onsubmit="return confirm('Restore <%= u.name %>? They will be reactivated and can log in again.')">
+                        data-confirm="Restore <%= u.name %>? They will be reactivated and can log in again."
+                        data-confirm-title="Restore Staff Account"
+                        data-confirm-ok="Restore">
                     <button type="submit" class="btn-restore" title="Restore">
                       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.48"/>
@@ -464,5 +470,6 @@
   }
 </script>
 
+<script src="/js/modal.js"></script>
 </body>
 </html>

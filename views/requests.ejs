@@ -223,7 +223,9 @@
                     <% if (c.approvalStatus === 'pending') { %>
                     <div class="txn-row-actions" style="gap:.5rem">
                       <form action="/clients/<%= c._id %>/approve" method="POST" style="display:inline"
-                            onsubmit="return confirm('Approve this account registration for <%= c.name %>?')">
+                            data-confirm="Approve account registration for <%= c.name %>? Their account will become active."
+                            data-confirm-title="Approve Registration"
+                            data-confirm-ok="Approve">
                         <button type="submit" class="btn-approve-full">
                           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                           Approve
@@ -318,7 +320,9 @@
                   <td>
                     <div class="txn-row-actions" style="gap:.5rem">
                       <form action="/transactions/<%= req._id %>/approve-edit" method="POST" style="display:inline"
-                            onsubmit="return confirm('Approve this edit? The transaction and balance will be updated.')">
+                            data-confirm="Approve this edit? The transaction and balance will be updated."
+                            data-confirm-title="Approve Edit"
+                            data-confirm-ok="Approve">
                         <button type="submit" class="btn-approve-full">
                           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                           Approve
@@ -399,7 +403,9 @@
                 <td>
                   <div class="txn-row-actions" style="gap:.5rem">
                     <form action="/transactions/<%= req._id %>/approve" method="POST" style="display:inline"
-                          onsubmit="return confirm('Approve this request? The balance will be updated.')">
+                          data-confirm="Approve this request? The client balance will be updated."
+                          data-confirm-title="Approve Request"
+                          data-confirm-ok="Approve">
                       <button type="submit" class="btn-approve-full">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                         Approve
@@ -567,5 +573,6 @@
   }
 </script>
 
+<script src="/js/modal.js"></script>
 </body>
 </html>

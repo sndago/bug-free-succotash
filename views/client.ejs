@@ -137,7 +137,10 @@
           </a>
           <% if (user.role === 'super_admin') { %>
           <form action="/clients/<%= client._id %>/delete" method="POST"
-                onsubmit="return confirm('Permanently delete <%= client.name %> and all their transaction records? This cannot be undone.')">
+                data-confirm="Archive <%= client.name %>'s account? It will be permanently deleted after 60 days."
+                data-confirm-title="Archive Client"
+                data-confirm-danger
+                data-confirm-ok="Yes, archive">
             <button type="submit" class="btn-delete">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
                 <polyline points="3 6 5 6 21 6"/>
@@ -438,7 +441,9 @@
                     <% if (txn.pendingEdit && txn.pendingEdit.editStatus === 'pending' && ['admin','super_admin'].includes(user.role)) { %>
                     <!-- Admin inline approve/reject edit request -->
                     <form action="/transactions/<%= txn._id %>/approve-edit" method="POST" style="display:inline"
-                          onsubmit="return confirm('Approve this edit? The transaction and balance will be updated.')">
+                          data-confirm="Approve this edit? The transaction and balance will be updated."
+                          data-confirm-title="Approve Edit"
+                          data-confirm-ok="Approve">
                       <button type="submit" class="btn-txn-approve" title="Approve Edit">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                       </button>
@@ -454,7 +459,9 @@
                     <% } else if (txn.requiresApproval && txn.approvalStatus === 'pending' && ['admin','super_admin'].includes(user.role)) { %>
                     <!-- Admin inline approve/reject new transaction request -->
                     <form action="/transactions/<%= txn._id %>/approve" method="POST" style="display:inline"
-                          onsubmit="return confirm('Approve this request? The balance will be updated.')">
+                          data-confirm="Approve this request? The client balance will be updated."
+                          data-confirm-title="Approve Request"
+                          data-confirm-ok="Approve">
                       <button type="submit" class="btn-txn-approve" title="Approve">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                       </button>
@@ -507,7 +514,10 @@
                     <% if (user.role === 'super_admin') { %>
                     <form action="/clients/<%= client._id %>/transactions/<%= txn._id %>/delete"
                           method="POST" style="display:inline"
-                          onsubmit="return confirm('Delete this transaction? The account balance will be adjusted.')">
+                          data-confirm="Archive this transaction? The balance will be adjusted and it will be permanently deleted after 60 days."
+                          data-confirm-title="Archive Transaction"
+                          data-confirm-danger
+                          data-confirm-ok="Yes, archive">
                       <button type="submit" class="btn-txn-delete" title="Delete">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="3 6 5 6 21 6"/>
@@ -666,5 +676,6 @@
   }
 </script>
 
+<script src="/js/modal.js"></script>
 </body>
 </html>

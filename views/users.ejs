@@ -226,7 +226,10 @@
                       </svg>
                     </a>
                     <form action="/users/<%= u._id %>/toggle" method="POST" style="display:inline"
-                          onsubmit="return confirm('<%= u.isActive ? 'Deactivate' : 'Reactivate' %> <%= u.name %>?')">
+                          data-confirm="<%= u.isActive ? 'Deactivate' : 'Reactivate' %> <%= u.name %>?"
+                          data-confirm-title="<%= u.isActive ? 'Deactivate' : 'Reactivate' %> Staff"
+                          data-confirm-variant="<%= u.isActive ? 'warning' : 'primary' %>"
+                          data-confirm-ok="<%= u.isActive ? 'Deactivate' : 'Reactivate' %>">
                       <button type="submit"
                               class="btn-txn-edit"
                               title="<%= u.isActive ? 'Deactivate' : 'Reactivate' %>"
@@ -244,7 +247,10 @@
                     </form>
                     <% if (isSuperAdmin) { %>
                     <form action="/users/<%= u._id %>/delete" method="POST" style="display:inline"
-                          onsubmit="return confirm('Permanently delete <%= u.name %>? Their assigned clients will be unassigned.')">
+                          data-confirm="Archive <%= u.name %>'s account? Their assigned clients will be unassigned and the account will be permanently deleted after 60 days."
+                          data-confirm-title="Archive Staff Account"
+                          data-confirm-danger
+                          data-confirm-ok="Yes, archive">
                       <button type="submit" class="btn-txn-delete" title="Delete">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="3 6 5 6 21 6"/>
@@ -350,5 +356,6 @@
   }
 </script>
 
+<script src="/js/modal.js"></script>
 </body>
 </html>
