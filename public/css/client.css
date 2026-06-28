@@ -561,24 +561,26 @@ tr:hover .txn-row-actions { opacity: 1; }
   .txn-actions-cell { display: none !important; }
 }
 
-/* ─── Flash messages + auto-dismiss ──────────── */
-@keyframes flashOut {
-  0%   { opacity: 1; max-height: 120px; margin-bottom: 1.25rem; padding: .875rem 1.125rem; }
-  55%  { opacity: 0; max-height: 120px; margin-bottom: 1.25rem; padding: .875rem 1.125rem; }
-  100% { opacity: 0; max-height: 0;     margin-bottom: 0;        padding: 0; }
-}
+/* ─── Flash / toast notifications ────────────── */
+@keyframes flashIn  { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
+@keyframes flashOut { from { opacity:1; max-height:120px; margin-bottom:1.25rem; padding:.875rem 1.125rem }
+                      30%  { opacity:0; max-height:120px; margin-bottom:1.25rem; padding:.875rem 1.125rem }
+                      to   { opacity:0; max-height:0;     margin-bottom:0;       padding:0 } }
+@keyframes flashTimerDrain { from { width:100% } to { width:0 } }
+
 .flash {
+  position: relative;
   display: flex;
   align-items: center;
   gap: .625rem;
-  padding: .875rem 1.125rem;
+  padding: .875rem 1.125rem .875rem 1.125rem;
   border-radius: .75rem;
   font-size: .875rem;
   font-weight: 500;
   margin-bottom: 1.25rem;
   overflow: hidden;
   flex-shrink: 0;
-  animation: fadeUp .3s ease both, flashOut 0.8s ease 5s forwards;
+  animation: flashIn .25s ease both;
 }
 .flash-success {
   background: #ecfdf5;
@@ -597,4 +599,33 @@ tr:hover .txn-row-actions { opacity: 1; }
   border: 1px solid #fde68a;
   border-left: 3px solid #f59e0b;
   color: #92400e;
+}
+.flash-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 .1rem;
+  color: inherit;
+  opacity: .5;
+  transition: opacity .15s;
+}
+.flash-close:hover { opacity: 1; }
+.flash-timer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 0 0 0 .75rem;
+  animation: flashTimerDrain 5s linear forwards;
+}
+.flash-success .flash-timer { background: #059669; }
+.flash-error   .flash-timer { background: #e11d48; }
+.flash-warning .flash-timer { background: #f59e0b; }
+.flash.flash-leaving {
+  animation: flashOut .5s ease forwards;
+  pointer-events: none;
 }

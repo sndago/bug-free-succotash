@@ -102,8 +102,41 @@
     if (form) form.submit();
   }
 
+  function initFlash() {
+    var flash = document.querySelector('.flash');
+    if (!flash) return;
+
+    // Close button
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'flash-close';
+    closeBtn.setAttribute('aria-label', 'Dismiss');
+    closeBtn.innerHTML = '&times;';
+    flash.appendChild(closeBtn);
+
+    // Timer bar
+    var bar = document.createElement('div');
+    bar.className = 'flash-timer';
+    flash.appendChild(bar);
+
+    var timer;
+    var dismissed = false;
+
+    function dismiss() {
+      if (dismissed) return;
+      dismissed = true;
+      clearTimeout(timer);
+      flash.classList.add('flash-leaving');
+      setTimeout(function () { if (flash.parentNode) flash.parentNode.removeChild(flash); }, 500);
+    }
+
+    closeBtn.addEventListener('click', dismiss);
+    timer = setTimeout(dismiss, 5000);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     build();
+    initFlash();
     document.querySelectorAll('form[data-confirm]').forEach(function (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
