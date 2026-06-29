@@ -1,5 +1,7 @@
+const mongoose    = require('mongoose');
 const Transaction = require('../models/Transaction');
 const Client      = require('../models/Client');
+const Account     = require('../models/Account');
 const logActivity = require('../utils/logActivity');
 
 const CATEGORIES          = ['deposit', 'withdrawal', 'transfer', 'payment', 'fee', 'interest', 'loan'];
@@ -39,14 +41,26 @@ const tellerCanEdit = (txn, userId) => {
   return isPendingOwnRequest || isRecentTransaction;
 };
 
+/* Resolve the Account for a transaction, falling back to the client's first account */
+const resolveAccount = async (accountId, clientId) => {
+  if (accountId && mongoose.isValidObjectId(accountId)) {
+    const acct = await Account.findOne({ _id: accountId, client: clientId });
+    if (acct) return acct;
+  }
+  return Account.findOne({ client: clientId }).sort({ createdAt: 1 });
+};
+
 /* ── GET: new transaction form ───────────────── */
 const newTransactionForm = async (req, res) => {
   try {
-    const client = await Client.findById(req.params.clientId).lean();
+    const client   = await Client.findById(req.params.clientId).lean();
     if (!client) return res.status(404).render('login', { error: 'Client not found.' });
 
+    const accounts = await Account.find({ client: client._id, status: 'active' }).sort({ createdAt: 1 }).lean();
+    const selectedAccountId = mongoose.isValidObjectId(req.query.account) ? req.query.account : null;
+
     res.render('transaction-form', {
-      user: req.session.user, client,
+      user: req.session.user, client, accounts, selectedAccountId,
       txn: { type: 'credit', category: 'deposit', status: 'completed' },
       errors: [], isEdit: false, isEditRequest: false, hasPendingEdit: false,
     });
@@ -57,18 +71,24 @@ const newTransactionForm = async (req, res) => {
 
 /* ── POST: create transaction ────────────────── */
 const createTransaction = async (req, res) => {
-  const role           = req.session.user.role;
-  const isRequest      = needsApproval(role, req.body.category);
-  const errors         = validate(req.body, isRequest);
-  let client;
+  const role      = req.session.user.role;
+  const isRequest = needsApproval(role, req.body.category);
+  const errors    = validate(req.body, isRequest);
+  let client, account;
 
   try {
     client = await Client.findById(req.params.clientId);
     if (!client) return res.status(404).render('login', { error: 'Client not found.' });
 
+    account = await resolveAccount(req.body.accountId, client._id);
+    if (!account) return res.status(404).render('login', { error: 'Account not found.' });
+
+    const accounts = await Account.find({ client: client._id, status: 'active' }).sort({ createdAt: 1 }).lean();
+    const selectedAccountId = String(account._id);
+
     if (errors.length) {
       return res.status(422).render('transaction-form', {
-        user: req.session.user, client: client.toObject(),
+        user: req.session.user, client: client.toObject(), accounts, selectedAccountId,
         txn: req.body, errors, isEdit: false, isEditRequest: false, hasPendingEdit: false,
       });
     }
@@ -76,27 +96,28 @@ const createTransaction = async (req, res) => {
     const amount = parseFloat(req.body.amount);
 
     if (isRequest) {
-      // Pending approval: balance not touched yet
       await Transaction.create({
         client:           client._id,
+        account:          account._id,
         type:             req.body.type,
         amount,
         description:      req.body.description.trim(),
         category:         req.body.category,
         reference:        req.body.reference?.trim() || undefined,
-        balanceAfter:     client.balance,
+        balanceAfter:     account.balance,
         status:           'pending',
         date:             new Date(),
         requiresApproval: true,
         approvalStatus:   'pending',
         requestedBy:      req.session.user.id,
       });
-      await logActivity(req, 'TXN_REQUEST', 'transaction', `Submitted ${req.body.category} request of $${amount.toFixed(2)} for ${client.name}`, { category: req.body.category, amount, type: req.body.type, clientName: client.name });
+      await logActivity(req, 'TXN_REQUEST', 'transaction', `Submitted ${req.body.category} request of ₵${amount.toFixed(2)} for ${client.name}`, { category: req.body.category, amount, type: req.body.type, clientName: client.name });
       req.session.flash = { type: 'success', message: 'Request submitted and is awaiting admin approval.' };
     } else {
-      const newBalance = parseFloat((client.balance + eff(req.body.type, amount)).toFixed(2));
-      const txn = await Transaction.create({
+      const newBalance = parseFloat((account.balance + eff(req.body.type, amount)).toFixed(2));
+      await Transaction.create({
         client:       client._id,
+        account:      account._id,
         type:         req.body.type,
         amount,
         description:  req.body.description.trim(),
@@ -106,17 +127,18 @@ const createTransaction = async (req, res) => {
         status:       req.body.status,
         date:         new Date(),
       });
-      client.balance = newBalance;
-      await client.save();
-      await logActivity(req, 'TXN_CREATE', 'transaction', `Recorded ${req.body.category} of $${amount.toFixed(2)} for ${client.name}`, { category: req.body.category, amount, type: req.body.type, clientName: client.name }, txn._id);
+      account.balance = newBalance;
+      await account.save();
+      await logActivity(req, 'TXN_CREATE', 'transaction', `Recorded ${req.body.category} of ₵${amount.toFixed(2)} for ${client.name}`, { category: req.body.category, amount, type: req.body.type, clientName: client.name });
       req.session.flash = { type: 'success', message: 'Transaction recorded successfully.' };
     }
 
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
-    const c = client?.toObject?.() || {};
+    const accounts = await Account.find({ client: req.params.clientId, status: 'active' }).lean();
     res.status(500).render('transaction-form', {
-      user: req.session.user, client: c,
+      user: req.session.user, client: client?.toObject?.() || {},
+      accounts, selectedAccountId: req.body.accountId || null,
       txn: req.body, errors: [err.message], isEdit: false, isEditRequest: false, hasPendingEdit: false,
     });
   }
@@ -141,15 +163,14 @@ const editTransactionForm = async (req, res) => {
       return res.redirect(303, `/clients/${client._id}`);
     }
 
-    // Pre-fill form with pending edit values if one already exists
+    const accounts = await Account.find({ client: client._id, status: 'active' }).sort({ createdAt: 1 }).lean();
+    const selectedAccountId = txn.account ? String(txn.account) : null;
+
     const hasPendingEdit = isEditRequest && txn.pendingEdit?.editStatus === 'pending';
-    let formTxn = txn;
-    if (hasPendingEdit) {
-      formTxn = { ...txn, ...txn.pendingEdit, _id: txn._id, status: txn.status };
-    }
+    const formTxn = hasPendingEdit ? { ...txn, ...txn.pendingEdit, _id: txn._id, status: txn.status } : txn;
 
     res.render('transaction-form', {
-      user: req.session.user, client,
+      user: req.session.user, client, accounts, selectedAccountId,
       txn: formTxn, errors: [], isEdit: true,
       isEditRequest, hasPendingEdit,
     });
@@ -169,12 +190,13 @@ const updateTransaction = async (req, res) => {
     if (!client) return res.status(404).render('login', { error: 'Client not found.' });
     if (!txn)    return res.status(404).render('login', { error: 'Transaction not found.' });
 
+    const account = await resolveAccount(txn.account, client._id);
+
     const role          = req.session.user.role;
     const isRequest     = txn.requiresApproval && txn.approvalStatus === 'pending';
     const isOld         = !withinEditWindow(txn);
     const isEditRequest = role === 'teller' && isOld && !txn.requiresApproval;
 
-    // Tellers cannot directly edit old transactions — must go through pendingEdit
     if (role === 'teller' && isOld && !isRequest && !isEditRequest) {
       req.session.flash = { type: 'error', message: 'Transactions older than 24 hours require an edit request.' };
       return res.redirect(303, `/clients/${client._id}`);
@@ -184,27 +206,30 @@ const updateTransaction = async (req, res) => {
       return res.redirect(303, `/clients/${client._id}`);
     }
 
-    // ── Edit request path (teller + old transaction) ──────────────────
+    const accounts = await Account.find({ client: client._id, status: 'active' }).lean();
+    const selectedAccountId = txn.account ? String(txn.account) : null;
+
+    // ── Edit request path ──────────────────────────────────────────────
     if (isEditRequest) {
       const errors = validate(req.body, true);
       if (errors.length) {
         const hasPendingEdit = txn.pendingEdit?.editStatus === 'pending';
         return res.status(422).render('transaction-form', {
-          user: req.session.user, client: client.toObject(),
+          user: req.session.user, client: client.toObject(), accounts, selectedAccountId,
           txn: { ...txn.toObject(), ...req.body, _id: txn._id },
           errors, isEdit: true, isEditRequest: true, hasPendingEdit,
         });
       }
 
       txn.pendingEdit = {
-        requestedBy:  req.session.user.id,
-        requestedAt:  new Date(),
-        type:         req.body.type,
-        amount:       parseFloat(req.body.amount),
-        description:  req.body.description.trim(),
-        category:     req.body.category,
-        reference:    req.body.reference?.trim() || txn.reference,
-        editStatus:   'pending',
+        requestedBy: req.session.user.id,
+        requestedAt: new Date(),
+        type:        req.body.type,
+        amount:      parseFloat(req.body.amount),
+        description: req.body.description.trim(),
+        category:    req.body.category,
+        reference:   req.body.reference?.trim() || txn.reference,
+        editStatus:  'pending',
       };
       await txn.save();
       await logActivity(req, 'EDIT_REQUEST', 'transaction', `Submitted edit request for ${txn.category} transaction on ${client.name}'s account`, { clientName: client.name, originalAmount: txn.amount, proposedAmount: parseFloat(req.body.amount) }, txn._id);
@@ -216,7 +241,7 @@ const updateTransaction = async (req, res) => {
     const errors = validate(req.body, isRequest);
     if (errors.length) {
       return res.status(422).render('transaction-form', {
-        user: req.session.user, client: client.toObject(),
+        user: req.session.user, client: client.toObject(), accounts, selectedAccountId,
         txn: { ...txn.toObject(), ...req.body, _id: txn._id },
         errors, isEdit: true,
       });
@@ -246,16 +271,19 @@ const updateTransaction = async (req, res) => {
       if (req.body.reference?.trim()) txn.reference = req.body.reference.trim();
       await txn.save();
 
-      client.balance = parseFloat((client.balance + delta).toFixed(2));
-      await client.save();
+      if (account) {
+        account.balance = parseFloat((account.balance + delta).toFixed(2));
+        await account.save();
+      }
       req.session.flash = { type: 'success', message: 'Transaction updated successfully.' };
     }
 
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
-    const c = client?.toObject?.() || {};
+    const accounts = await Account.find({ client: req.params.clientId, status: 'active' }).lean();
     res.status(500).render('transaction-form', {
-      user: req.session.user, client: c,
+      user: req.session.user, client: client?.toObject?.() || {},
+      accounts, selectedAccountId: txn?.account ? String(txn.account) : null,
       txn: { ...req.body, _id: req.params.txnId }, errors: [err.message], isEdit: true,
     });
   }
@@ -274,17 +302,20 @@ const deleteTransaction = async (req, res) => {
       return res.redirect(303, `/clients/${req.params.clientId}`);
     }
 
-    // Only reverse balance for approved/completed transactions
+    // Reverse balance effect on the account
     if (!txn.requiresApproval || txn.approvalStatus === 'approved') {
-      client.balance = parseFloat((client.balance - eff(txn.type, txn.amount)).toFixed(2));
-      await client.save();
+      const account = await resolveAccount(txn.account, client._id);
+      if (account) {
+        account.balance = parseFloat((account.balance - eff(txn.type, txn.amount)).toFixed(2));
+        await account.save();
+      }
     }
 
     txn.isDeleted = true;
     txn.deletedAt = new Date();
     txn.deletedBy = req.session.user.id;
     await txn.save();
-    await logActivity(req, 'TXN_DELETE', 'transaction', `Archived ${txn.category} of $${txn.amount.toFixed(2)} from ${client.name}'s account`, { clientName: client.name, category: txn.category, amount: txn.amount, type: txn.type });
+    await logActivity(req, 'TXN_DELETE', 'transaction', `Archived ${txn.category} of ₵${txn.amount.toFixed(2)} from ${client.name}'s account`, { clientName: client.name, category: txn.category, amount: txn.amount, type: txn.type });
     req.session.flash = { type: 'success', message: 'Transaction archived and will be permanently deleted after 60 days.' };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
@@ -293,7 +324,7 @@ const deleteTransaction = async (req, res) => {
   }
 };
 
-/* ── GET: list pending requests (admin/super_admin) ── */
+/* ── GET: list pending requests ──────────────── */
 const listRequests = async (req, res) => {
   try {
     const tab = req.query.tab || 'pending';
@@ -301,23 +332,31 @@ const listRequests = async (req, res) => {
 
     if (tab === 'edits') {
       requests = (await Transaction.find({ 'pendingEdit.editStatus': 'pending' })
-        .populate('client', 'name accountNumber')
+        .populate('client', 'name')
+        .populate('account', 'accountNumber accountType')
         .populate({ path: 'pendingEdit.requestedBy', select: 'name' })
         .sort({ 'pendingEdit.requestedAt': -1 })
         .lean()).filter(r => r.client != null);
     } else if (tab === 'accounts') {
-      requests = await Client.find({ approvalStatus: { $in: ['pending', 'rejected'] } })
+      const rawClients = await Client.find({ approvalStatus: { $in: ['pending', 'rejected'] } })
         .populate('requestedBy', 'name')
         .populate('approvedBy', 'name')
         .sort({ createdAt: -1 })
         .lean();
+      // Attach first account info for display
+      const cIds     = rawClients.map(c => c._id);
+      const acctDocs = await Account.find({ client: { $in: cIds } }).sort({ createdAt: 1 }).lean();
+      const acctMap  = {};
+      acctDocs.forEach(a => { if (!acctMap[String(a.client)]) acctMap[String(a.client)] = a; });
+      requests = rawClients.map(c => ({ ...c, firstAccount: acctMap[String(c._id)] || null }));
     } else {
       const filter = { requiresApproval: true };
       if (tab === 'pending')  filter.approvalStatus = 'pending';
       if (tab === 'approved') filter.approvalStatus = 'approved';
       if (tab === 'rejected') filter.approvalStatus = 'rejected';
       requests = (await Transaction.find(filter)
-        .populate('client', 'name accountNumber balance')
+        .populate('client', 'name')
+        .populate('account', 'accountNumber accountType balance')
         .populate('requestedBy', 'name')
         .populate('approvedBy', 'name')
         .sort({ createdAt: -1 })
@@ -345,8 +384,8 @@ const approveEditRequest = async (req, res) => {
       return res.redirect(303, '/requests?tab=edits');
     }
 
-    const client = await Client.findById(txn.client);
-    const edit   = txn.pendingEdit;
+    const account = await resolveAccount(txn.account, txn.client);
+    const edit    = txn.pendingEdit;
 
     const oldEff = eff(txn.type, txn.amount);
     const newEff = eff(edit.type, edit.amount);
@@ -357,17 +396,19 @@ const approveEditRequest = async (req, res) => {
     txn.description = edit.description;
     txn.category    = edit.category;
     if (edit.reference) txn.reference = edit.reference;
-    txn.balanceAfter = parseFloat(((txn.balanceAfter || client.balance) + delta).toFixed(2));
+    txn.balanceAfter = parseFloat(((txn.balanceAfter || (account?.balance || 0)) + delta).toFixed(2));
 
-    txn.pendingEdit.editStatus  = 'approved';
-    txn.pendingEdit.approvedBy  = req.session.user.id;
-    txn.pendingEdit.approvedAt  = new Date();
+    txn.pendingEdit.editStatus = 'approved';
+    txn.pendingEdit.approvedBy = req.session.user.id;
+    txn.pendingEdit.approvedAt = new Date();
     await txn.save();
 
-    client.balance = parseFloat((client.balance + delta).toFixed(2));
-    await client.save();
+    if (account) {
+      account.balance = parseFloat((account.balance + delta).toFixed(2));
+      await account.save();
+    }
 
-    await logActivity(req, 'EDIT_APPROVE', 'transaction', `Approved edit request on ${txn.category} transaction for ${client.name}`, { clientName: client.name, category: txn.category, newAmount: edit.amount }, txn._id);
+    await logActivity(req, 'EDIT_APPROVE', 'transaction', `Approved edit request on ${txn.category} transaction`, { category: txn.category, newAmount: edit.amount }, txn._id);
     req.session.flash = { type: 'success', message: 'Edit request approved — transaction updated.' };
     res.redirect(303, req.get('referer') || '/requests?tab=edits');
   } catch (err) {
@@ -403,16 +444,22 @@ const rejectEditRequest = async (req, res) => {
 /* ── POST: approve a request ──────────────────── */
 const approveTransaction = async (req, res) => {
   try {
-    const txn = await Transaction.findOne({ _id: req.params.txnId, requiresApproval: true, approvalStatus: 'pending' })
-      .populate('client');
-
+    const txn = await Transaction.findOne({ _id: req.params.txnId, requiresApproval: true, approvalStatus: 'pending' });
     if (!txn) {
       req.session.flash = { type: 'error', message: 'Request not found or already processed.' };
       return res.redirect(303, '/requests');
     }
 
-    const client     = await Client.findById(txn.client._id || txn.client);
-    const newBalance = parseFloat((client.balance + eff(txn.type, txn.amount)).toFixed(2));
+    const [client, account] = await Promise.all([
+      Client.findById(txn.client),
+      resolveAccount(txn.account, txn.client),
+    ]);
+    if (!account) {
+      req.session.flash = { type: 'error', message: 'Account not found for this transaction.' };
+      return res.redirect(303, '/requests');
+    }
+
+    const newBalance = parseFloat((account.balance + eff(txn.type, txn.amount)).toFixed(2));
 
     txn.approvalStatus = 'approved';
     txn.status         = 'completed';
@@ -421,11 +468,11 @@ const approveTransaction = async (req, res) => {
     txn.approvedAt     = new Date();
     await txn.save();
 
-    client.balance = newBalance;
-    await client.save();
+    account.balance = newBalance;
+    await account.save();
 
-    await logActivity(req, 'TXN_APPROVE', 'transaction', `Approved ${txn.category} of $${txn.amount.toFixed(2)} for ${client.name}`, { clientName: client.name, category: txn.category, amount: txn.amount, type: txn.type }, txn._id);
-    req.session.flash = { type: 'success', message: `Request approved — $${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${txn.category} posted to ${client.name}'s account.` };
+    await logActivity(req, 'TXN_APPROVE', 'transaction', `Approved ${txn.category} of ₵${txn.amount.toFixed(2)} for ${client?.name || 'client'}`, { category: txn.category, amount: txn.amount, type: txn.type }, txn._id);
+    req.session.flash = { type: 'success', message: `Request approved — ₵${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${txn.category} posted.` };
     res.redirect(303, req.get('referer') || '/requests');
   } catch (err) {
     req.session.flash = { type: 'error', message: err.message };
@@ -438,7 +485,6 @@ const rejectTransaction = async (req, res) => {
   try {
     const txn = await Transaction.findOne({ _id: req.params.txnId, requiresApproval: true, approvalStatus: 'pending' })
       .populate('client', 'name');
-
     if (!txn) {
       req.session.flash = { type: 'error', message: 'Request not found or already processed.' };
       return res.redirect(303, '/requests');
@@ -477,12 +523,12 @@ const listTransactions = async (req, res) => {
 
     const rawTxns = await Transaction
       .find(filter)
-      .populate('client', 'name accountNumber')
+      .populate('client', 'name')
+      .populate('account', 'accountNumber accountType')
       .sort({ date: -1 })
       .limit(200)
       .lean();
 
-    // Exclude transactions whose client was archived (populate returns null for deleted clients)
     const transactions = rawTxns.filter(t => t.client != null);
 
     res.render('transactions', {

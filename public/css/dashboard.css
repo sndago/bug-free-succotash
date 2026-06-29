@@ -473,6 +473,7 @@ body {
 .type-badge.savings  { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
 .type-badge.checking { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
 .type-badge.business { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+.type-badge.loan     { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
 .balance {
   font-weight: 700;

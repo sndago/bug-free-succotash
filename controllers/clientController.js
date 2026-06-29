@@ -1,7 +1,9 @@
 const path        = require('path');
 const fs          = require('fs');
 const multer      = require('multer');
+const mongoose    = require('mongoose');
 const Client      = require('../models/Client');
+const Account     = require('../models/Account');
 const Transaction = require('../models/Transaction');
 const User        = require('../models/User');
 const Branch      = require('../models/Branch');
@@ -40,19 +42,17 @@ const generateAccountNumber = async (phone, branchId) => {
     if (branch?.code) prefix = branch.code;
   }
   const base = (prefix + last7).toUpperCase();
-  if (!await Client.exists({ accountNumber: base })) return base;
+  if (!await Account.exists({ accountNumber: base })) return base;
   for (let i = 1; i <= 99; i++) {
     const candidate = `${base}${i}`;
-    if (!await Client.exists({ accountNumber: candidate })) return candidate;
+    if (!await Account.exists({ accountNumber: candidate })) return candidate;
   }
   return base + Date.now().toString().slice(-4);
 };
 
-const validate = (body, existingId = null) => {
+const validateClient = (body) => {
   const errors = [];
-  if (!body.name?.trim())          errors.push('Full name is required.');
-  if (!body.accountNumber?.trim()) errors.push('Account number is required.');
-  if (!body.accountType)           errors.push('Account type is required.');
+  if (!body.name?.trim())  errors.push('Full name is required.');
   if (!body.phone?.trim()) {
     errors.push('Phone number is required.');
   } else if (!/^0\d{9}$/.test(body.phone.trim())) {
@@ -64,6 +64,23 @@ const validate = (body, existingId = null) => {
   return errors;
 };
 
+/* Ensure every client has at least one Account doc (lazy migration for pre-Account data) */
+const ensureAccounts = async (client) => {
+  let accounts = await Account.find({ client: client._id }).sort({ createdAt: 1 }).lean();
+  if (accounts.length === 0 && client.accountNumber) {
+    const acct = await Account.create({
+      client:        client._id,
+      accountNumber: client.accountNumber,
+      accountType:   client.accountType || 'savings',
+      balance:       client.balance     || 0,
+      status:        client.status      || 'active',
+      approvalStatus: client.approvalStatus === 'approved' ? 'approved' : 'approved',
+    });
+    accounts = [acct.toObject()];
+  }
+  return accounts;
+};
+
 /* ── READ: client detail ─────────────────────── */
 const clientDetail = async (req, res) => {
   const { role, id: userId } = req.session.user;
@@ -71,21 +88,36 @@ const clientDetail = async (req, res) => {
     const filter = { _id: req.params.id };
     if (role === 'teller') filter.assignedTeller = userId;
 
-    const client = await Client.findOne(filter).populate('assignedTeller', 'name').populate('homeBranch', 'name code').lean();
+    const client = await Client.findOne(filter)
+      .populate('assignedTeller', 'name')
+      .populate('homeBranch', 'name code')
+      .lean();
     if (!client) return res.status(404).render('login', { error: 'Client not found or access denied.' });
+
+    const accounts = await ensureAccounts(client);
+
+    const selectedAccountId = mongoose.isValidObjectId(req.query.account) ? req.query.account : null;
+    const selectedAccount   = selectedAccountId
+      ? accounts.find(a => String(a._id) === selectedAccountId) || null
+      : null;
+    const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
 
     const range     = VALID_RANGES.includes(req.query.range) ? req.query.range : '90';
     const txnFilter = { client: client._id };
+    if (selectedAccountId) txnFilter.account = new mongoose.Types.ObjectId(selectedAccountId);
     if (range !== 'all') {
       const since = new Date();
       since.setDate(since.getDate() - parseInt(range));
       txnFilter.date = { $gte: since };
     }
 
+    const aggMatch = { client: client._id, status: 'completed', isDeleted: { $ne: true } };
+    if (selectedAccountId) aggMatch.account = new mongoose.Types.ObjectId(selectedAccountId);
+
     const [transactions, allTimeSummary] = await Promise.all([
       Transaction.find(txnFilter).sort({ date: -1 }).lean(),
       Transaction.aggregate([
-        { $match: { client: client._id, status: 'completed', isDeleted: { $ne: true } } },
+        { $match: aggMatch },
         { $group: {
           _id:     null,
           credits: { $sum: { $cond: [{ $eq: ['$type', 'credit'] }, '$amount', 0] } },
@@ -97,7 +129,7 @@ const clientDetail = async (req, res) => {
 
     const completed = transactions.filter(t => t.status === 'completed');
     const stats = {
-      balance:        client.balance,
+      balance:        selectedAccount ? selectedAccount.balance : totalBalance,
       periodCredits:  completed.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0),
       periodDebits:   completed.filter(t => t.type === 'debit' ).reduce((s, t) => s + t.amount, 0),
       periodCount:    transactions.length,
@@ -106,7 +138,9 @@ const clientDetail = async (req, res) => {
       allTimeCount:   allTimeSummary[0]?.count   || 0,
     };
 
-    res.render('client', { user: req.session.user, client, transactions, stats, range });
+    res.render('client', {
+      user: req.session.user, client, accounts, selectedAccountId, transactions, stats, range,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -121,13 +155,8 @@ const newClientForm = async (req, res) => {
       getBranches(),
     ]);
     res.render('client-form', {
-      user: req.session.user,
-      tellers,
-      branches,
-      client:  {},
-      errors:  [],
-      isEdit:  false,
-      isTeller,
+      user: req.session.user, tellers, branches,
+      client: {}, errors: [], isEdit: false, isTeller,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -138,9 +167,10 @@ const newClientForm = async (req, res) => {
 const createClient = async (req, res) => {
   const { role, id: userId } = req.session.user;
   const isTeller = role === 'teller';
-  req.body.accountNumber = await generateAccountNumber(req.body.phone, req.body.homeBranch);
-  const errors = validate(req.body);
-  if (!req.body.homeBranch) errors.push('Home branch is required.');
+  const errors   = validateClient(req.body);
+  if (!req.body.homeBranch)   errors.push('Home branch is required.');
+  if (!req.body.accountType)  errors.push('Account type is required.');
+
   try {
     if (errors.length) {
       const [tellers, branches] = await Promise.all([
@@ -152,13 +182,12 @@ const createClient = async (req, res) => {
       });
     }
 
+    const accountNumber = await generateAccountNumber(req.body.phone, req.body.homeBranch);
+
     const client = await Client.create({
       name:           req.body.name.trim(),
-      email:          req.body.email?.trim()   || undefined,
+      email:          req.body.email?.trim()  || undefined,
       phone:          req.body.phone.trim(),
-      accountNumber:  req.body.accountNumber.trim().toUpperCase(),
-      accountType:    req.body.accountType,
-      balance:        0,
       status:         isTeller ? 'inactive' : (req.body.status || 'active'),
       assignedTeller: isTeller ? userId : (req.body.assignedTeller || undefined),
       homeBranch:     req.body.homeBranch || undefined,
@@ -166,14 +195,25 @@ const createClient = async (req, res) => {
       requestedBy:    isTeller ? userId : undefined,
     });
 
-    await logActivity(req, 'CLIENT_CREATE', 'client', `${isTeller ? 'Submitted' : 'Created'} client account for ${client.name}`, { accountNumber: client.accountNumber }, client._id);
+    await Account.create({
+      client:         client._id,
+      accountNumber:  accountNumber.toUpperCase(),
+      accountType:    req.body.accountType,
+      balance:        0,
+      status:         isTeller ? 'inactive' : 'active',
+      approvalStatus: isTeller ? 'pending' : 'approved',
+      requestedBy:    isTeller ? userId : undefined,
+    });
+
+    await logActivity(req, 'CLIENT_CREATE', 'client', `${isTeller ? 'Submitted' : 'Created'} client account for ${client.name}`, { accountNumber }, client._id);
     req.session.flash = isTeller
       ? { type: 'success', message: `Account for "${client.name}" submitted — awaiting admin approval.` }
       : { type: 'success', message: `Client "${client.name}" created successfully.` };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
+    const isTellerFallback = req.session.user.role === 'teller';
     const [tellers, branches] = await Promise.all([
-      isTeller ? [] : getTellers(),
+      isTellerFallback ? [] : getTellers(),
       getBranches(),
     ]);
     res.status(500).render('client-form', {
@@ -187,7 +227,10 @@ const createClient = async (req, res) => {
 const editClientForm = async (req, res) => {
   try {
     const [client, tellers, branches] = await Promise.all([
-      Client.findById(req.params.id).populate('assignedTeller', 'name').populate('homeBranch', 'name code').lean(),
+      Client.findById(req.params.id)
+        .populate('assignedTeller', 'name')
+        .populate('homeBranch', 'name code')
+        .lean(),
       getTellers(),
       getBranches(),
     ]);
@@ -204,17 +247,8 @@ const editClientForm = async (req, res) => {
 
 /* ── UPDATE: handle POST ─────────────────────── */
 const updateClient = async (req, res) => {
-  const errors = validate(req.body);
+  const errors = validateClient(req.body);
   try {
-    // Unique account number check (exclude self)
-    if (req.body.accountNumber?.trim()) {
-      const dup = await Client.findOne({
-        accountNumber: req.body.accountNumber.trim().toUpperCase(),
-        _id: { $ne: req.params.id },
-      }).lean();
-      if (dup) errors.push('Account number already exists.');
-    }
-
     if (errors.length) {
       const [tellers, branches] = await Promise.all([getTellers(), getBranches()]);
       return res.status(422).render('client-form', {
@@ -227,17 +261,14 @@ const updateClient = async (req, res) => {
 
     await Client.findByIdAndUpdate(req.params.id, {
       name:           req.body.name.trim(),
-      email:          req.body.email?.trim()   || undefined,
+      email:          req.body.email?.trim()  || undefined,
       phone:          req.body.phone.trim(),
-      accountNumber:  req.body.accountNumber.trim().toUpperCase(),
-      accountType:    req.body.accountType,
-      balance:        parseFloat(req.body.balance) || 0,
       status:         req.body.status || 'active',
       assignedTeller: req.body.assignedTeller || undefined,
       homeBranch:     req.body.homeBranch     || undefined,
     }, { runValidators: true });
 
-    await logActivity(req, 'CLIENT_UPDATE', 'client', `Updated client account for ${req.body.name.trim()}`, { accountNumber: req.body.accountNumber }, req.params.id);
+    await logActivity(req, 'CLIENT_UPDATE', 'client', `Updated client account for ${req.body.name.trim()}`, {}, req.params.id);
     req.session.flash = { type: 'success', message: 'Client updated successfully.' };
     res.redirect(303, `/clients/${req.params.id}`);
   } catch (err) {
@@ -259,11 +290,19 @@ const deleteClient = async (req, res) => {
       req.session.flash = { type: 'error', message: 'Client not found.' };
       return res.redirect(303, '/dashboard');
     }
+    const now    = new Date();
+    const delBy  = req.session.user.id;
     client.isDeleted = true;
-    client.deletedAt = new Date();
-    client.deletedBy = req.session.user.id;
+    client.deletedAt = now;
+    client.deletedBy = delBy;
     await client.save();
-    await logActivity(req, 'CLIENT_DELETE', 'client', `Archived client account for ${client.name}`, { accountNumber: client.accountNumber }, client._id);
+
+    await Account.updateMany(
+      { client: client._id },
+      { isDeleted: true, deletedAt: now, deletedBy: delBy },
+    );
+
+    await logActivity(req, 'CLIENT_DELETE', 'client', `Archived client account for ${client.name}`, {}, client._id);
     req.session.flash = { type: 'success', message: 'Client archived and will be permanently deleted after 60 days.' };
     res.redirect(303, '/dashboard');
   } catch (err) {
@@ -286,7 +325,13 @@ const approveClient = async (req, res) => {
     client.approvedBy     = req.session.user.id;
     await client.save();
 
-    await logActivity(req, 'CLIENT_APPROVE', 'client', `Approved new client account for ${client.name}`, { accountNumber: client.accountNumber }, client._id);
+    // Also activate the account(s)
+    await Account.updateMany(
+      { client: client._id, approvalStatus: 'pending' },
+      { approvalStatus: 'approved', status: 'active', approvedBy: req.session.user.id },
+    );
+
+    await logActivity(req, 'CLIENT_APPROVE', 'client', `Approved new client account for ${client.name}`, {}, client._id);
     req.session.flash = { type: 'success', message: `"${client.name}" approved — account is now active.` };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
@@ -309,12 +354,72 @@ const rejectClient = async (req, res) => {
     client.rejectionReason = req.body.reason?.trim() || 'No reason provided.';
     await client.save();
 
-    await logActivity(req, 'CLIENT_REJECT', 'client', `Rejected new client account for ${client.name}`, { accountNumber: client.accountNumber, reason: client.rejectionReason }, client._id);
+    await logActivity(req, 'CLIENT_REJECT', 'client', `Rejected new client account for ${client.name}`, { reason: client.rejectionReason }, client._id);
     req.session.flash = { type: 'success', message: `Registration for "${client.name}" rejected.` };
     res.redirect(303, '/requests?tab=accounts');
   } catch (err) {
     req.session.flash = { type: 'error', message: err.message };
     res.redirect(303, '/requests?tab=accounts');
+  }
+};
+
+/* ── ADD ACCOUNT: show form ──────────────────── */
+const addAccountForm = async (req, res) => {
+  try {
+    const client = await Client.findById(req.params.id)
+      .populate('homeBranch', 'name code')
+      .lean();
+    if (!client) return res.status(404).render('login', { error: 'Client not found.' });
+
+    const accounts = await Account.find({ client: client._id }).lean();
+    const existingTypes = accounts.map(a => a.accountType);
+
+    res.render('account-form', {
+      user: req.session.user, client, existingTypes, errors: [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* ── ADD ACCOUNT: handle POST ────────────────── */
+const createAccount = async (req, res) => {
+  try {
+    const client = await Client.findById(req.params.id).lean();
+    if (!client) return res.status(404).render('login', { error: 'Client not found.' });
+
+    const existingAccounts = await Account.find({ client: client._id }).lean();
+    const existingTypes    = existingAccounts.map(a => a.accountType);
+
+    const errors = [];
+    if (!req.body.accountType) errors.push('Account type is required.');
+    if (req.body.accountType && existingTypes.includes(req.body.accountType)) {
+      errors.push(`This client already has a ${req.body.accountType} account.`);
+    }
+
+    if (errors.length) {
+      return res.status(422).render('account-form', {
+        user: req.session.user, client, existingTypes, errors,
+      });
+    }
+
+    const accountNumber = await generateAccountNumber(client.phone, client.homeBranch);
+
+    await Account.create({
+      client:        client._id,
+      accountNumber: accountNumber.toUpperCase(),
+      accountType:   req.body.accountType,
+      balance:       0,
+      status:        'active',
+      approvalStatus: 'approved',
+    });
+
+    await logActivity(req, 'ACCOUNT_CREATE', 'client', `Added ${req.body.accountType} account for ${client.name}`, { accountNumber }, client._id);
+    req.session.flash = { type: 'success', message: `${req.body.accountType.charAt(0).toUpperCase() + req.body.accountType.slice(1)} account added for ${client.name}.` };
+    res.redirect(303, `/clients/${client._id}`);
+  } catch (err) {
+    req.session.flash = { type: 'error', message: err.message };
+    res.redirect(303, `/clients/${req.params.id}`);
   }
 };
 
@@ -332,7 +437,6 @@ const uploadPhoto = (req, res) => {
       const client = await Client.findOne(filter);
       if (!client) return res.status(404).json({ error: 'Client not found or access denied.' });
 
-      // Delete old photo file if it exists
       if (client.photo) {
         const oldPath = path.join(__dirname, '../public', client.photo);
         fs.unlink(oldPath, () => {});
@@ -363,10 +467,33 @@ const listClients = async (req, res) => {
       .sort({ name: 1 })
       .lean();
 
-    res.render('clients', { user: req.session.user, clients });
+    const clientIds   = clients.map(c => c._id);
+    const accountDocs = await Account.find({ client: { $in: clientIds } }).sort({ createdAt: 1 }).lean();
+
+    const acctMap = {};
+    accountDocs.forEach(a => {
+      const key = String(a.client);
+      if (!acctMap[key]) acctMap[key] = { accounts: [], totalBalance: 0 };
+      acctMap[key].accounts.push(a);
+      acctMap[key].totalBalance = parseFloat((acctMap[key].totalBalance + (a.balance || 0)).toFixed(2));
+    });
+
+    const enriched = clients.map(c => ({
+      ...c,
+      accounts:     acctMap[String(c._id)]?.accounts     || [],
+      totalBalance: acctMap[String(c._id)]?.totalBalance || 0,
+    }));
+
+    res.render('clients', { user: req.session.user, clients: enriched });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-module.exports = { listClients, clientDetail, newClientForm, createClient, editClientForm, updateClient, deleteClient, approveClient, rejectClient, uploadPhoto };
+module.exports = {
+  listClients, clientDetail, newClientForm, createClient,
+  editClientForm, updateClient, deleteClient,
+  approveClient, rejectClient,
+  addAccountForm, createAccount,
+  uploadPhoto,
+};

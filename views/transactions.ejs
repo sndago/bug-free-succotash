@@ -249,7 +249,7 @@
                 </td>
                 <td>
                   <div class="client-name"><%= txn.client.name %></div>
-                  <div class="txn-time"><code><%= txn.client.accountNumber %></code></div>
+                  <div class="txn-time"><code><%= txn.account?.accountNumber || '—' %></code></div>
                 </td>
                 <td><span class="txn-desc"><%= txn.description %></span></td>
                 <td><span class="cat-badge cat-<%= txn.category %>"><%= txn.category %></span></td>

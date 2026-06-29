@@ -1,4 +1,5 @@
 const Client      = require('../models/Client');
+const Account     = require('../models/Account');
 const User        = require('../models/User');
 const Transaction = require('../models/Transaction');
 
@@ -27,7 +28,7 @@ const dashboard = async (req, res) => {
       clients = await Client.find({ assignedTeller: id }).lean();
       const clientIds = clients.map(c => c._id);
 
-      const [txnSummary, pendingCount, recent] = await Promise.all([
+      const [txnSummary, pendingCount, recent, balanceResult] = await Promise.all([
         clientIds.length
           ? Transaction.aggregate([
               { $match: { client: { $in: clientIds }, date: { $gte: since }, status: 'completed', isDeleted: { $ne: true } } },
@@ -45,15 +46,22 @@ const dashboard = async (req, res) => {
         ]}),
         clientIds.length
           ? Transaction.find({ client: { $in: clientIds } })
-              .populate('client', 'name accountNumber')
+              .populate('client', 'name')
+              .populate('account', 'accountNumber accountType')
               .sort({ date: -1 })
               .limit(10)
               .lean()
           : Promise.resolve([]),
+        clientIds.length
+          ? Account.aggregate([
+              { $match: { client: { $in: clientIds }, isDeleted: { $ne: true } } },
+              { $group: { _id: null, total: { $sum: '$balance' } } },
+            ])
+          : Promise.resolve([]),
       ]);
 
       stats.totalClients    = clients.length;
-      stats.totalBalance    = clients.reduce((sum, c) => sum + (c.balance || 0), 0);
+      stats.totalBalance    = balanceResult[0]?.total || 0;
       stats.periodCredits   = txnSummary[0]?.credits || 0;
       stats.periodDebits    = txnSummary[0]?.debits  || 0;
       stats.periodCount     = txnSummary[0]?.count   || 0;
@@ -67,11 +75,11 @@ const dashboard = async (req, res) => {
         Client.find().populate('assignedTeller', 'name').lean(),
         Client.countDocuments(),
         Client.countDocuments({ status: 'active' }),
-        Client.aggregate([{ $match: { isDeleted: { $ne: true } } }, { $group: { _id: null, total: { $sum: '$balance' } } }]),
+        Account.aggregate([{ $match: { isDeleted: { $ne: true } } }, { $group: { _id: null, total: { $sum: '$balance' } } }]),
         Transaction.countDocuments({ requiresApproval: true, approvalStatus: 'pending' }),
         Transaction.countDocuments({ 'pendingEdit.editStatus': 'pending' }),
         Client.countDocuments({ approvalStatus: 'pending' }),
-        Client.aggregate([
+        Account.aggregate([
           { $match: { isDeleted: { $ne: true } } },
           { $group: { _id: '$accountType', count: { $sum: 1 } } },
         ]),

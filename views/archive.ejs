@@ -180,9 +180,9 @@
               <% clients.forEach(c => { %>
               <tr>
                 <td><div class="client-name"><%= c.name %></div></td>
-                <td><span class="txn-desc"><%= c.accountNumber %></span></td>
-                <td><span class="txn-desc" style="text-transform:capitalize"><%= c.accountType %></span></td>
-                <td><span class="txn-desc"><%= fmtMoney(c.balance) %></span></td>
+                <td><span class="txn-desc" style="color:#94a3b8;font-size:.8rem">—</span></td>
+                <td><span class="txn-desc" style="color:#94a3b8;font-size:.8rem">—</span></td>
+                <td><span class="txn-desc" style="color:#94a3b8;font-size:.8rem">—</span></td>
                 <td class="date-cell"><div class="txn-date"><%= fmtDate(c.deletedAt) %></div></td>
                 <td><span class="txn-desc"><%= c.deletedBy?.name || '—' %></span></td>
                 <td>
@@ -247,7 +247,7 @@
               <tr>
                 <td>
                   <div class="client-name"><%= t.client?.name || 'Unknown' %></div>
-                  <div class="txn-desc" style="font-size:.75rem;color:#94a3b8"><%= t.client?.accountNumber || '' %></div>
+                  <div class="txn-desc" style="font-size:.75rem;color:#94a3b8"><%= t.account?.accountNumber || '' %></div>
                 </td>
                 <td>
                   <span class="approval-badge <%= t.type === 'credit' ? 'approval-approved' : 'approval-rejected' %>">

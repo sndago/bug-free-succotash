@@ -19,6 +19,7 @@
   const fmtDate    = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const fmtTime    = d => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const periodLabel = range === 'all' ? 'All Time' : `${range}d`;
+  const totalBalance = (accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
 %>
 
 <div class="layout">
@@ -240,8 +241,10 @@
             <div>
               <h1 class="hero-name"><%= client.name %></h1>
               <div class="hero-badges">
-                <span class="type-badge <%= client.accountType %>"><%= client.accountType %></span>
                 <span class="status-badge <%= client.status %>"><%= client.status %></span>
+                <% (accounts || []).forEach(a => { %>
+                <span class="type-badge <%= a.accountType %>"><%= a.accountType %></span>
+                <% }) %>
                 <% if (client.assignedTeller) { %>
                 <span class="teller-chip">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
@@ -271,12 +274,6 @@
               <%= client.phone %>
             </span>
             <% } %>
-            <span class="meta-chip mono">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
-              </svg>
-              <%= client.accountNumber %>
-            </span>
             <% if (client.homeBranch) { %>
             <span class="meta-chip">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -290,6 +287,60 @@
         </div>
       </div>
 
+      <!-- ── Accounts ─────────────────────── -->
+      <div class="accounts-section">
+        <div class="accounts-section-header">
+          <h3 class="accounts-section-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+            Accounts
+            <span class="accounts-count"><%= (accounts || []).length %></span>
+          </h3>
+          <% if (['admin','super_admin'].includes(user.role) && client.approvalStatus === 'approved') { %>
+          <a href="/clients/<%= client._id %>/accounts/new" class="btn-add-account">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Account
+          </a>
+          <% } %>
+        </div>
+
+        <div class="accounts-grid">
+          <% (accounts || []).forEach(acct => {
+            const isSelected = selectedAccountId && String(acct._id) === selectedAccountId;
+          %>
+          <div class="account-card <%= isSelected ? 'account-card-active' : '' %>"
+               onclick="window.location='?account=<%= acct._id %>&range=<%= range %>'">
+            <div class="account-card-top">
+              <span class="type-badge <%= acct.accountType %>"><%= acct.accountType %></span>
+              <span class="status-badge <%= acct.status %>" style="font-size:.72rem"><%= acct.status %></span>
+            </div>
+            <div class="account-card-num"><%= acct.accountNumber %></div>
+            <div class="account-card-balance">₵<%= fmt(acct.balance) %></div>
+            <% if (['admin','super_admin','teller'].includes(user.role) && client.approvalStatus === 'approved' && acct.status === 'active') { %>
+            <a href="/clients/<%= client._id %>/transactions/new?account=<%= acct._id %>"
+               class="btn-acct-txn"
+               onclick="event.stopPropagation()">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              New Transaction
+            </a>
+            <% } %>
+          </div>
+          <% }) %>
+        </div>
+
+        <% if (selectedAccountId) { %>
+        <div class="account-filter-notice">
+          Showing transactions for selected account only —
+          <a href="?range=<%= range %>">view all accounts</a>
+        </div>
+        <% } %>
+      </div>
+
       <!-- ── Stats ──────────────────────────── -->
       <div class="stats-grid">
         <div class="stat-card">
@@ -301,7 +352,7 @@
           </div>
           <div>
             <div class="stat-value">₵<%= fmt(stats.balance) %></div>
-            <div class="stat-label">Current Balance</div>
+            <div class="stat-label"><%= selectedAccountId ? 'Account Balance' : 'Total Balance' %></div>
           </div>
         </div>
 
@@ -643,8 +694,66 @@
   });
 </script>
 <style>
-  /* Client detail: hero + stats stay fixed; only the transaction list scrolls */
   .client-hero { flex-shrink: 0; }
+
+  /* Accounts section */
+  .accounts-section { margin-bottom: 1.25rem; }
+  .accounts-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: .75rem;
+  }
+  .accounts-section-title {
+    display: flex; align-items: center; gap: .45rem;
+    font-size: .9375rem; font-weight: 600; color: #1e293b; margin: 0;
+  }
+  .accounts-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.35rem; height: 1.35rem; border-radius: 50%;
+    background: #e0e7ff; color: #4338ca; font-size: .72rem; font-weight: 700;
+  }
+  .btn-add-account {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .4rem .85rem; border-radius: .5rem;
+    background: #6366f1; color: #fff; font-size: .8125rem; font-weight: 600;
+    text-decoration: none; transition: background .15s;
+  }
+  .btn-add-account:hover { background: #4f46e5; }
+
+  .accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: .75rem;
+  }
+  .account-card {
+    background: #fff; border: 1.5px solid #e2e8f0; border-radius: .75rem;
+    padding: 1rem 1.1rem; cursor: pointer; transition: border-color .15s, box-shadow .15s;
+    display: flex; flex-direction: column; gap: .4rem;
+  }
+  .account-card:hover { border-color: #a5b4fc; box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
+  .account-card-active { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+  .account-card-top { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+  .account-card-num {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: .8rem; letter-spacing: .05em; color: #64748b;
+  }
+  .account-card-balance {
+    font-size: 1.25rem; font-weight: 700; color: #1e293b;
+    font-variant-numeric: tabular-nums;
+  }
+  .btn-acct-txn {
+    display: inline-flex; align-items: center; gap: .3rem;
+    margin-top: .25rem; padding: .3rem .65rem; border-radius: .375rem;
+    background: #f1f5f9; color: #4338ca; font-size: .775rem; font-weight: 600;
+    text-decoration: none; border: 1px solid #e0e7ff; transition: background .15s;
+    align-self: flex-start;
+  }
+  .btn-acct-txn:hover { background: #e0e7ff; }
+
+  .account-filter-notice {
+    margin-top: .5rem; font-size: .8125rem; color: #64748b;
+  }
+  .account-filter-notice a { color: #6366f1; font-weight: 600; text-decoration: none; }
+  .account-filter-notice a:hover { text-decoration: underline; }
 </style>
 <!-- ── Mobile: backdrop + drawer toggle ─────────────── -->
 <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>

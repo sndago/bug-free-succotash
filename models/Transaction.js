@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const txnSchema = new mongoose.Schema({
   client:           { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true, index: true },
+  account:          { type: mongoose.Schema.Types.ObjectId, ref: 'Account', index: true },
   type:             { type: String, enum: ['credit', 'debit'], required: true },
   amount:           { type: Number, required: true, min: 0 },
   description:      { type: String, required: true, trim: true },

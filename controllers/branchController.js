@@ -1,5 +1,6 @@
-const Branch  = require('../models/Branch');
-const Client  = require('../models/Client');
+const Branch      = require('../models/Branch');
+const Client      = require('../models/Client');
+const Account     = require('../models/Account');
 const logActivity = require('../utils/logActivity');
 
 /* ── LIST ────────────────────────────────────── */
@@ -79,20 +80,36 @@ const deleteBranch = async (req, res) => {
 /* ── BALANCE BREAKDOWN BY BRANCH ─────────────── */
 const branchBalances = async (req, res) => {
   try {
-    const rows = await Client.aggregate([
+    // Join Account → Client to get homeBranch, then group by branch
+    const rows = await Account.aggregate([
       { $match: { isDeleted: { $ne: true } } },
+      { $lookup: {
+        from:         'clients',
+        localField:   'client',
+        foreignField: '_id',
+        as:           'c',
+      }},
+      { $unwind: { path: '$c', preserveNullAndEmptyArrays: true } },
+      { $match: { 'c.isDeleted': { $ne: true } } },
       { $group: {
-        _id:          '$homeBranch',
+        _id:          '$c.homeBranch',
         totalBalance: { $sum: '$balance' },
-        clientCount:  { $sum: 1 },
-        activeCount:  { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+        clientSet:    { $addToSet: '$client' },
+        activeSet:    { $addToSet: { $cond: [{ $eq: ['$c.status', 'active'] }, '$client', null] } },
+      }},
+      { $project: {
+        totalBalance: 1,
+        clientCount:  { $size: '$clientSet' },
+        activeCount:  { $size: {
+          $filter: { input: '$activeSet', as: 'x', cond: { $ne: ['$$x', null] } },
+        }},
       }},
       { $lookup: { from: 'branches', localField: '_id', foreignField: '_id', as: 'branch' } },
       { $unwind: { path: '$branch', preserveNullAndEmptyArrays: true } },
       { $sort: { totalBalance: -1 } },
     ]);
 
-    const grandTotal = rows.reduce((s, r) => s + r.totalBalance, 0);
+    const grandTotal = rows.reduce((s, r) => s + (r.totalBalance || 0), 0);
 
     res.render('branch-balances', { user: req.session.user, rows, grandTotal });
   } catch (err) {

@@ -181,9 +181,8 @@
             <thead>
               <tr>
                 <th>Client</th>
-                <th>Account #</th>
-                <th>Type</th>
-                <th>Balance</th>
+                <th>Accounts</th>
+                <th>Total Balance</th>
                 <th>Status</th>
                 <% if (user.role !== 'teller') { %><th>Assigned Teller</th><% } %>
               </tr>
@@ -198,9 +197,18 @@
                   </div>
                   <div class="client-email"><%= client.email || '—' %></div>
                 </td>
-                <td style="font-variant-numeric:tabular-nums"><%= client.accountNumber %></td>
-                <td><span class="type-badge <%= client.accountType %>"><%= client.accountType %></span></td>
-                <td class="balance">₵<%= client.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+                <td>
+                  <% if (client.accounts && client.accounts.length) { %>
+                  <div style="display:flex;flex-wrap:wrap;gap:.3rem">
+                    <% client.accounts.forEach(a => { %>
+                    <span class="type-badge <%= a.accountType %>" style="font-size:.72rem"><%= a.accountType %></span>
+                    <% }) %>
+                  </div>
+                  <% } else { %>
+                  <span style="color:#94a3b8;font-size:.85rem">—</span>
+                  <% } %>
+                </td>
+                <td class="balance">₵<%= (client.totalBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
                 <td>
                   <% if (client.approvalStatus === 'pending') { %>
                   <span class="approval-badge approval-pending">

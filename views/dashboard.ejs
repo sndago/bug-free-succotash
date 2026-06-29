@@ -302,7 +302,7 @@
                     </td>
                     <td>
                       <div style="font-weight:600;color:#0f172a;font-size:.875rem"><%= txn.client.name %></div>
-                      <div style="font-size:.75rem;color:#94a3b8;font-family:monospace"><%= txn.client.accountNumber %></div>
+                      <div style="font-size:.75rem;color:#94a3b8;font-family:monospace"><%= txn.account?.accountNumber || '—' %></div>
                     </td>
                     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151"><%= txn.description %></td>
                     <td><span class="txn-cat-badge"><%= txn.category %></span></td>

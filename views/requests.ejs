@@ -204,9 +204,13 @@
                     <a href="/clients/<%= c._id %>" class="client-name" style="text-decoration:none"><%= c.name %></a>
                     <% if (c.email) { %><div class="txn-time"><%= c.email %></div><% } %>
                   </td>
-                  <td style="font-variant-numeric:tabular-nums"><code><%= c.accountNumber %></code></td>
-                  <td><span class="type-badge <%= c.accountType %>"><%= c.accountType %></span></td>
-                  <td class="col-right">₵<%= Number(c.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></td>
+                  <td style="font-variant-numeric:tabular-nums"><code><%= c.firstAccount?.accountNumber || '—' %></code></td>
+                  <td>
+                    <% if (c.firstAccount) { %>
+                    <span class="type-badge <%= c.firstAccount.accountType %>"><%= c.firstAccount.accountType %></span>
+                    <% } else { %><span style="color:#94a3b8">—</span><% } %>
+                  </td>
+                  <td class="col-right">₵<%= Number(c.firstAccount?.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></td>
                   <td><span class="client-name"><%= c.requestedBy?.name || '—' %></span></td>
                   <td>
                     <% if (c.approvalStatus === 'pending') { %>
@@ -240,7 +244,7 @@
                       </form>
                       <button type="button" class="btn-reject-full"
                               data-txn-id="<%= c._id %>"
-                              data-desc="<%= c.name %> (<%= c.accountNumber %>)"
+                              data-desc="<%= c.name %>"
                               data-route="client"
                               onclick="openRejectModal(this.dataset.txnId, this.dataset.desc, this.dataset.route)">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
@@ -295,7 +299,7 @@
                     <a href="/clients/<%= req.client._id %>" class="client-name" style="text-decoration:none">
                       <%= req.client.name %>
                     </a>
-                    <div class="txn-time"><code><%= req.client.accountNumber %></code></div>
+                    <div class="txn-time"><code><%= req.account?.accountNumber || '—' %></code></div>
                   </td>
                   <td>
                     <span class="client-name"><%= e.requestedBy?.name || '—' %></span>
@@ -391,7 +395,7 @@
                   <a href="/clients/<%= req.client._id %>" class="client-name" style="text-decoration:none">
                     <%= req.client.name %>
                   </a>
-                  <div class="txn-time"><code><%= req.client.accountNumber %></code></div>
+                  <div class="txn-time"><code><%= req.account?.accountNumber || '—' %></code></div>
                 </td>
                 <td><span class="client-name"><%= req.requestedBy?.name || '—' %></span></td>
                 <td><span class="cat-badge cat-<%= req.category %>"><%= req.category %></span></td>

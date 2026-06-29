@@ -1,4 +1,5 @@
 const Client      = require('../models/Client');
+const Account     = require('../models/Account');
 const Transaction = require('../models/Transaction');
 const User        = require('../models/User');
 const logActivity = require('../utils/logActivity');
@@ -19,7 +20,8 @@ const listArchive = async (req, res) => {
         .sort({ deletedAt: -1 })
         .lean(),
       Transaction.find({ isDeleted: true })
-        .populate('client', 'name accountNumber')
+        .populate('client', 'name')
+        .populate('account', 'accountNumber accountType')
         .populate('deletedBy', 'name')
         .sort({ deletedAt: -1 })
         .lean(),
@@ -54,7 +56,14 @@ const restoreClient = async (req, res) => {
     client.deletedAt = undefined;
     client.deletedBy = undefined;
     await client.save();
-    await logActivity(req, 'CLIENT_RESTORE', 'client', `Restored archived client account for ${client.name}`, { accountNumber: client.accountNumber }, client._id);
+
+    // Restore all accounts that were deleted at the same time
+    await Account.updateMany(
+      { client: client._id, isDeleted: true },
+      { isDeleted: false, $unset: { deletedAt: 1, deletedBy: 1 } },
+    );
+
+    await logActivity(req, 'CLIENT_RESTORE', 'client', `Restored archived client account for ${client.name}`, {}, client._id);
     req.session.flash = { type: 'success', message: `Client "${client.name}" has been restored.` };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
@@ -78,17 +87,26 @@ const restoreTransaction = async (req, res) => {
       return res.redirect(303, '/archive');
     }
 
-    // Re-apply the balance effect that was reversed on deletion
+    // Re-apply the balance effect on the relevant account
     if (!txn.requiresApproval || txn.approvalStatus === 'approved') {
-      client.balance = parseFloat((client.balance + eff(txn.type, txn.amount)).toFixed(2));
-      await client.save();
+      let account = null;
+      if (txn.account) {
+        account = await Account.findById(txn.account);
+      }
+      if (!account) {
+        account = await Account.findOne({ client: txn.client }).sort({ createdAt: 1 });
+      }
+      if (account) {
+        account.balance = parseFloat((account.balance + eff(txn.type, txn.amount)).toFixed(2));
+        await account.save();
+      }
     }
 
     txn.isDeleted = false;
     txn.deletedAt = undefined;
     txn.deletedBy = undefined;
     await txn.save();
-    await logActivity(req, 'TXN_RESTORE', 'transaction', `Restored archived ${txn.category} of $${txn.amount.toFixed(2)} for ${client.name}`, { clientName: client.name, category: txn.category, amount: txn.amount, type: txn.type }, txn._id);
+    await logActivity(req, 'TXN_RESTORE', 'transaction', `Restored archived ${txn.category} of ₵${txn.amount.toFixed(2)} for ${client.name}`, { clientName: client.name, category: txn.category, amount: txn.amount, type: txn.type }, txn._id);
     req.session.flash = { type: 'success', message: 'Transaction restored and balance updated.' };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {

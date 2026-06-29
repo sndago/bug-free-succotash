@@ -58,8 +58,12 @@
   const txnType      = val('type', 'credit');
   const txnCategory  = val('category', 'deposit');
 
-  // For tellers editing a pending request
   const isPendingRequest = isEdit && txn.requiresApproval && txn.approvalStatus === 'pending';
+
+  // Resolve selected account for balance display
+  const resolvedAccount = (accounts || []).find(a => String(a._id) === String(selectedAccountId))
+    || (accounts && accounts[0])
+    || null;
 %>
 <div class="layout">
 
@@ -189,7 +193,7 @@
                 Update details for this <%= isPendingRequest ? 'pending request' : 'transaction' %> on <strong><%= client.name %></strong>'s account.
               <% } else { %>
                 Record a transaction on <strong><%= client.name %></strong>'s account
-                (current balance: <strong>₵<%= Number(client.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></strong>).
+                <% if (resolvedAccount) { %>(balance: <strong>₵<%= Number(resolvedAccount.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %></strong>)<% } %>.
               <% } %>
             </p>
           </div>
@@ -247,6 +251,40 @@
           class="client-form"
           novalidate
         >
+
+          <!-- Section: Account selector -->
+          <% if (!isEdit && accounts && accounts.length > 1) { %>
+          <div class="form-section">
+            <div class="form-section-label">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+              </svg>
+              Account
+            </div>
+            <div class="form-grid">
+              <div class="form-group form-col-full">
+                <label for="accountId">Select Account <span class="req">*</span></label>
+                <div class="select-wrap">
+                  <select id="accountId" name="accountId" required onchange="updateBalanceHint(this)">
+                    <% accounts.forEach(a => { %>
+                    <option value="<%= a._id %>"
+                            data-balance="<%= a.balance %>"
+                            <%= String(a._id) === String(selectedAccountId) ? 'selected' : '' %>>
+                      <%= a.accountType.charAt(0).toUpperCase() + a.accountType.slice(1) %> — <%= a.accountNumber %>
+                      (₵<%= Number(a.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) %>)
+                    </option>
+                    <% }) %>
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" class="select-chevron">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <% } else { %>
+          <input type="hidden" name="accountId" value="<%= resolvedAccount ? resolvedAccount._id : '' %>">
+          <% } %>
 
           <!-- Section: Transaction Type & Amount -->
           <div class="form-section">
@@ -402,6 +440,17 @@
     btn.style.opacity = '0.6';
     btn.style.cursor = 'not-allowed';
   });
+
+  function updateBalanceHint(sel) {
+    var opt = sel.options[sel.selectedIndex];
+    var bal = opt ? parseFloat(opt.dataset.balance || 0) : 0;
+    var sub = document.querySelector('.form-page-sub');
+    if (sub) {
+      sub.innerHTML = sub.innerHTML.replace(/\(balance:.*?\)/,
+        '(balance: <strong>₵' + bal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</strong>)'
+      );
+    }
+  }
 </script>
       </div>
     </div>

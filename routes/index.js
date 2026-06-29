@@ -5,7 +5,9 @@ const { showLogin, login, logout }                                    = require(
 const { dashboard }                                                    = require('../controllers/dashboardController');
 const { listClients, clientDetail, newClientForm, createClient,
         editClientForm, updateClient, deleteClient,
-        approveClient, rejectClient, uploadPhoto }                     = require('../controllers/clientController');
+        approveClient, rejectClient,
+        addAccountForm, createAccount,
+        uploadPhoto }                                                   = require('../controllers/clientController');
 const { newTransactionForm, createTransaction,
         editTransactionForm, updateTransaction,
         deleteTransaction,
@@ -41,6 +43,8 @@ router.post('/clients/:id/delete',   requireSuperAdmin, deleteClient);
 router.post('/clients/:id/approve',  requireAdmin,      approveClient);
 router.post('/clients/:id/reject',   requireAdmin,      rejectClient);
 router.post('/clients/:id/photo',    requireAuth,       uploadPhoto);
+router.get( '/clients/:id/accounts/new', requireAdmin,  addAccountForm);
+router.post('/clients/:id/accounts',     requireAdmin,  createAccount);
 
 // Transaction CRUD — tellers can create/edit pending requests; only super_admin can delete
 router.get( '/clients/:clientId/transactions/new',              requireAuth,       newTransactionForm);
