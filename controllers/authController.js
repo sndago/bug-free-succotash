@@ -7,11 +7,12 @@ const showLogin = (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { identifier, password } = req.body;
+  const id = (identifier || '').trim();
   try {
-    const user = await User.findOne({ email: email.toLowerCase().trim(), isActive: true });
+    const user = await User.findOne({ staffId: id, isActive: true });
     if (!user || !(await user.comparePassword(password))) {
-      return res.render('login', { error: 'Invalid email or password.' });
+      return res.render('login', { error: 'Invalid Staff ID or password.' });
     }
     req.session.user = { id: user._id, name: user.name, email: user.email, role: user.role };
     await logActivity(req, 'LOGIN', 'auth', `${user.name} logged in`, {}, user._id);
