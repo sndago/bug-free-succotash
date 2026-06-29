@@ -31,28 +31,6 @@
   gap: .625rem;
 }
 
-/* ─── Print button ───────────────────────────── */
-.btn-print {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  padding: .5rem 1rem;
-  background: #6366f1;
-  color: #fff;
-  border: none;
-  border-radius: .5rem;
-  font-size: .8125rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background .15s, box-shadow .15s, transform .1s;
-  box-shadow: 0 2px 8px rgba(99,102,241,.35);
-}
-.btn-print:hover  { background: #4f46e5; box-shadow: 0 4px 14px rgba(99,102,241,.45); }
-.btn-print:active { transform: translateY(1px); }
-
-/* ─── Print header (screen: hidden; print: shown) */
-.print-header { display: none; }
 
 /* ─── Client Hero ────────────────────────────── */
 .client-hero {
@@ -509,82 +487,6 @@ tr:hover .txn-row-actions { opacity: 1; }
 /* ─── Loan category badge ────────────────────── */
 .cat-loan { background: #f0fdf4; color: #15803d; }
 
-/* ─── Print styles ───────────────────────────── */
-@media print {
-  body { background: #fff; font-size: 11pt; }
-
-  .sidebar,
-  .topbar,
-  .period-tabs,
-  .table-search,
-  .btn-print,
-  .btn-logout,
-  form[action="/logout"],
-  .back-link,
-  .breadcrumb-sep,
-  .breadcrumb-current { display: none !important; }
-
-  .main-content { margin-left: 0 !important; }
-  .page-content { padding: 0 !important; }
-
-  .print-header {
-    display: flex !important;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 1rem;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid #0f172a;
-  }
-
-  .print-logo {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    font-size: 1.25rem;
-    font-weight: 800;
-    letter-spacing: .15em;
-    color: #0f172a;
-  }
-
-  .print-meta { text-align: right; }
-  .print-meta h2 { font-size: 1rem; color: #0f172a; margin-bottom: .2rem; }
-  .print-meta p  { font-size: .8rem; color: #64748b; }
-
-  .client-hero {
-    border: 1px solid #e2e8f0 !important;
-    box-shadow: none !important;
-    margin-bottom: 1rem;
-    page-break-inside: avoid;
-  }
-
-  .stats-grid { page-break-inside: avoid; }
-
-  .stat-card {
-    border: 1px solid #e2e8f0 !important;
-    box-shadow: none !important;
-  }
-
-  .stat-card::before { display: none !important; }
-
-  .table-card {
-    border: 1px solid #e2e8f0 !important;
-    box-shadow: none !important;
-  }
-
-  .txn-table thead th { background: #f8fafc !important; }
-
-  .amount-debit  { color: #dc2626 !important; }
-  .amount-credit { color: #16a34a !important; }
-
-  .ref-code { border: none; background: transparent; }
-
-  .cat-badge, .txn-status, .status-badge, .type-badge {
-    border: 1px solid currentColor !important;
-    background: transparent !important;
-  }
-
-  .txn-actions-cell { display: none !important; }
-}
 
 /* ─── Flash / toast notifications ────────────── */
 @keyframes flashIn  { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }

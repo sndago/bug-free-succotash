@@ -126,15 +126,7 @@
         <span class="breadcrumb-current"><%= client.name %></span>
       </div>
       <div class="topbar-actions">
-        <button onclick="window.print()" class="btn-print">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polyline points="6 9 6 2 18 2 18 9"/>
-            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-            <rect x="6" y="14" width="12" height="8"/>
-          </svg>
-          Print Statement
-        </button>
-        <% if (['admin','super_admin'].includes(user.role)) { %>
+<% if (['admin','super_admin'].includes(user.role)) { %>
         <div class="client-actions">
           <a href="/clients/<%= client._id %>/edit" class="btn-edit">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -202,21 +194,7 @@
       </div>
       <% } %>
 
-      <!-- ── Print Header (hidden on screen) ─── -->
-      <div class="print-header">
-        <div class="print-logo">
-          <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-            <polygon points="20,3 38,37 2,37" fill="#6366f1"/>
-          </svg>
-          <span>CONE</span>
-        </div>
-        <div class="print-meta">
-          <h2>Account Statement</h2>
-          <p>Generated <%= new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) %></p>
-        </div>
-      </div>
-
-      <!-- ── Client Hero ────────────────────── -->
+<!-- ── Client Hero ────────────────────── -->
       <div class="client-hero">
         <div class="hero-avatar" id="heroAvatar" title="Click to upload photo" onclick="document.getElementById('photoInput').click()">
           <% if (client.photo) { %>
