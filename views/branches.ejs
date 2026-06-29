@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cone — Branches</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/client.css">
+</head>
+<body>
+<%
+  const roleLabels   = { super_admin: 'Super Admin', admin: 'Admin', teller: 'Teller' };
+  const isSuperAdmin = user.role === 'super_admin';
+  const fmtDate      = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+%>
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 40 40" width="26" height="26" fill="none">
+        <polygon points="20,3 38,37 2,37" fill="#6366f1"/>
+      </svg>
+      <span class="logo-text">CONE</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/clients" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Clients
+      </a>
+      <a href="/transactions" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="17" y1="7" x2="7" y2="7"/>
+          <polyline points="14 4 17 7 14 10"/>
+          <line x1="7" y1="17" x2="17" y2="17"/>
+          <polyline points="10 14 7 17 10 20"/>
+        </svg>
+        Transactions
+      </a>
+      <a href="/requests" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Requests
+      </a>
+      <a href="/users" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+        </svg>
+        Staff
+      </a>
+      <a href="/branches" class="nav-link active">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Branches
+      </a>
+      <a href="/logs" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Logs
+      </a>
+      <% if (isSuperAdmin) { %>
+      <a href="/archive" class="nav-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polyline points="21 8 21 21 3 21 3 8"/>
+          <rect x="1" y="3" width="22" height="5"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+        </svg>
+        Archive
+      </a>
+      <% } %>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar"><%= user.name[0].toUpperCase() %></div>
+      <div class="user-info">
+        <div class="user-name"><%= user.name %></div>
+        <span class="role-badge <%= user.role %>"><%= roleLabels[user.role] || user.role %></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ──────────────────────────── -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-breadcrumb">
+        <a href="/dashboard" class="back-link">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          Dashboard
+        </a>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+        <span class="breadcrumb-current">Branches</span>
+      </div>
+      <form action="/logout" method="POST">
+        <button type="submit" class="btn-logout">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sign out
+        </button>
+      </form>
+    </header>
+
+    <div class="page-content">
+      <% if (flash) { %>
+      <div class="flash flash-<%= flash.type %>">
+        <% if (flash.type === 'success') { %>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <% } else { %>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
+        <% } %>
+        <%= flash.message %>
+      </div>
+      <% } %>
+
+      <!-- Add branch form -->
+      <div class="table-card" style="margin-bottom:1.25rem;padding:1.5rem 1.75rem">
+        <h3 style="font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:1rem">Add Branch</h3>
+        <form action="/branches" method="POST" style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:180px">
+            <label style="display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.35rem">Branch Name <span class="req">*</span></label>
+            <input type="text" name="name" placeholder="e.g. Accra Main" required
+              style="width:100%;padding:.6rem .875rem;border:1.5px solid #e2e8f0;border-radius:.625rem;font-size:.875rem;font-family:inherit;outline:none">
+          </div>
+          <div style="min-width:130px">
+            <label style="display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.35rem">Branch Code</label>
+            <input type="text" name="code" placeholder="e.g. ACC-001" maxlength="12"
+              style="width:100%;padding:.6rem .875rem;border:1.5px solid #e2e8f0;border-radius:.625rem;font-size:.875rem;font-family:monospace;outline:none">
+          </div>
+          <button type="submit" class="btn-save" style="height:40px;padding:0 1.25rem;font-size:.875rem">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Branch
+          </button>
+        </form>
+      </div>
+
+      <!-- Branch list -->
+      <div class="table-card">
+        <div class="table-header" style="padding:1.25rem 1.75rem 0">
+          <h3>All Branches</h3>
+          <span style="font-size:.8rem;color:#94a3b8"><%= branches.length %> branch<%= branches.length !== 1 ? 'es' : '' %></span>
+        </div>
+
+        <% if (!branches.length) { %>
+        <div class="empty-state" style="padding:3rem 2rem">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <p>No branches yet. Add one above.</p>
+        </div>
+        <% } else { %>
+        <div class="table-wrapper">
+          <table class="clients-table">
+            <thead>
+              <tr>
+                <th>Branch Name</th>
+                <th>Code</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% branches.forEach(b => { %>
+              <tr>
+                <td>
+                  <span class="client-name"><%= b.name %></span>
+                </td>
+                <td>
+                  <% if (b.code) { %>
+                  <code class="ref-code"><%= b.code %></code>
+                  <% } else { %>
+                  <span style="color:#cbd5e1">—</span>
+                  <% } %>
+                </td>
+                <td>
+                  <span class="txn-status txn-status-<%= b.isActive ? 'completed' : 'failed' %>">
+                    <%= b.isActive ? 'Active' : 'Inactive' %>
+                  </span>
+                </td>
+                <td style="color:#64748b;font-size:.85rem"><%= fmtDate(b.createdAt) %></td>
+                <td>
+                  <div style="display:flex;gap:.5rem;justify-content:flex-end">
+                    <form action="/branches/<%= b._id %>/toggle" method="POST"
+                          data-confirm="<%= b.isActive ? 'Deactivate' : 'Activate' %> this branch?"
+                          data-confirm-title="<%= b.isActive ? 'Deactivate' : 'Activate' %> Branch"
+                          data-confirm-ok="<%= b.isActive ? 'Deactivate' : 'Activate' %>">
+                      <button type="submit" class="btn-txn-edit" title="<%= b.isActive ? 'Deactivate' : 'Activate' %>">
+                        <% if (b.isActive) { %>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                        <% } else { %>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        <% } %>
+                      </button>
+                    </form>
+                    <% if (isSuperAdmin) { %>
+                    <form action="/branches/<%= b._id %>/delete" method="POST"
+                          data-confirm="Delete branch &quot;<%= b.name %>&quot;? This cannot be undone."
+                          data-confirm-title="Delete Branch"
+                          data-confirm-danger
+                          data-confirm-ok="Yes, delete">
+                      <button type="submit" class="btn-txn-delete" title="Delete">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          <path d="M10 11v6"/><path d="M14 11v6"/>
+                        </svg>
+                      </button>
+                    </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Mobile nav ─────────────────────────────── -->
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+<nav class="mobile-nav">
+  <a href="/dashboard" class="mobile-nav-item" data-path="/dashboard">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    Home
+  </a>
+  <a href="/clients" class="mobile-nav-item" data-path="/clients">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+    </svg>
+    Clients
+  </a>
+  <a href="/branches" class="mobile-nav-item active" data-path="/branches">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    Branches
+  </a>
+  <button class="mobile-nav-item" onclick="openSidebar()">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+    Menu
+  </button>
+</nav>
+
+<script>
+  (function () {
+    var path = window.location.pathname;
+    document.querySelectorAll('.mobile-nav-item[data-path]').forEach(function (item) {
+      if (path === item.dataset.path || path.startsWith(item.dataset.path + '/')) {
+        item.classList.add('active');
+      }
+    });
+  })();
+  function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarBackdrop').classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarBackdrop').classList.remove('open'); document.body.style.overflow = ''; }
+</script>
+<script src="/js/modal.js"></script>
+</body>
+</html>

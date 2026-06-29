@@ -5,19 +5,22 @@ const { showLogin, login, logout }                                    = require(
 const { dashboard }                                                    = require('../controllers/dashboardController');
 const { listClients, clientDetail, newClientForm, createClient,
         editClientForm, updateClient, deleteClient,
-        approveClient, rejectClient }                                  = require('../controllers/clientController');
+        approveClient, rejectClient, uploadPhoto }                     = require('../controllers/clientController');
 const { newTransactionForm, createTransaction,
         editTransactionForm, updateTransaction,
         deleteTransaction,
         listRequests, listTransactions,
         approveTransaction, rejectTransaction,
         approveEditRequest, rejectEditRequest }                        = require('../controllers/transactionController');
-const { listUsers, newUserForm, createUser,
+const { listUsers, userDetail, newUserForm, createUser,
         editUserForm, updateUser,
-        toggleUserActive, deleteUser }                                 = require('../controllers/userController');
+        toggleUserActive, deleteUser, uploadUserPhoto }                = require('../controllers/userController');
 const { listLogs }                                                     = require('../controllers/logController');
 const { listArchive, restoreClient,
         restoreTransaction, restoreUser }                              = require('../controllers/archiveController');
+const { listBranches, createBranch,
+        toggleBranch, deleteBranch,
+        branchBalances }                                               = require('../controllers/branchController');
 const { requireAuth, requireAdmin, requireSuperAdmin }                 = require('../middleware/auth');
 
 router.get('/',    showLogin);
@@ -37,6 +40,7 @@ router.post('/clients/:id',        requireAdmin,      updateClient);
 router.post('/clients/:id/delete',   requireSuperAdmin, deleteClient);
 router.post('/clients/:id/approve',  requireAdmin,      approveClient);
 router.post('/clients/:id/reject',   requireAdmin,      rejectClient);
+router.post('/clients/:id/photo',    requireAuth,       uploadPhoto);
 
 // Transaction CRUD — tellers can create/edit pending requests; only super_admin can delete
 router.get( '/clients/:clientId/transactions/new',              requireAuth,       newTransactionForm);
@@ -48,11 +52,20 @@ router.post('/clients/:clientId/transactions/:txnId/delete',    requireSuperAdmi
 // Staff management — admin manages tellers; super_admin manages admins + tellers
 router.get( '/users',              requireAdmin,      listUsers);
 router.get( '/users/new',          requireAdmin,      newUserForm);
+router.get( '/users/:id',          requireAdmin,      userDetail);
 router.post('/users',              requireAdmin,      createUser);
 router.get( '/users/:id/edit',     requireAdmin,      editUserForm);
 router.post('/users/:id',          requireAdmin,      updateUser);
 router.post('/users/:id/toggle',   requireAdmin,      toggleUserActive);
+router.post('/users/:id/photo',    requireAdmin,      uploadUserPhoto);
 router.post('/users/:id/delete',   requireSuperAdmin, deleteUser);
+
+// Branch management — admin and super_admin only
+router.get( '/branches/balances',          requireAdmin,      branchBalances);
+router.get( '/branches',                   requireAdmin,      listBranches);
+router.post('/branches',                   requireAdmin,      createBranch);
+router.post('/branches/:id/toggle',        requireAdmin,      toggleBranch);
+router.post('/branches/:id/delete',        requireSuperAdmin, deleteBranch);
 
 // Activity logs — admin and super_admin only
 router.get('/logs', requireAdmin, listLogs);

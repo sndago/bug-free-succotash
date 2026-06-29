@@ -53,6 +53,7 @@ const dashboard = async (req, res) => {
       ]);
 
       stats.totalClients    = clients.length;
+      stats.totalBalance    = clients.reduce((sum, c) => sum + (c.balance || 0), 0);
       stats.periodCredits   = txnSummary[0]?.credits || 0;
       stats.periodDebits    = txnSummary[0]?.debits  || 0;
       stats.periodCount     = txnSummary[0]?.count   || 0;
@@ -61,21 +62,26 @@ const dashboard = async (req, res) => {
       recentTxns = recent;
 
     } else {
-      const [allClients, totalClients, activeClients, balanceResult, pendingRequests] = await Promise.all([
+      const [allClients, totalClients, activeClients, balanceResult,
+             pendingTxns, pendingEdits, pendingClients, accountTypeCounts] = await Promise.all([
         Client.find().populate('assignedTeller', 'name').lean(),
         Client.countDocuments(),
         Client.countDocuments({ status: 'active' }),
         Client.aggregate([{ $match: { isDeleted: { $ne: true } } }, { $group: { _id: null, total: { $sum: '$balance' } } }]),
-        Transaction.countDocuments({ $or: [
-          { requiresApproval: true, approvalStatus: 'pending' },
-          { 'pendingEdit.editStatus': 'pending' },
-        ]}),
+        Transaction.countDocuments({ requiresApproval: true, approvalStatus: 'pending' }),
+        Transaction.countDocuments({ 'pendingEdit.editStatus': 'pending' }),
+        Client.countDocuments({ approvalStatus: 'pending' }),
+        Client.aggregate([
+          { $match: { isDeleted: { $ne: true } } },
+          { $group: { _id: '$accountType', count: { $sum: 1 } } },
+        ]),
       ]);
       clients = allClients;
       stats.totalClients    = totalClients;
       stats.activeClients   = activeClients;
       stats.totalBalance    = balanceResult[0]?.total || 0;
-      stats.pendingRequests = pendingRequests;
+      stats.pendingRequests = pendingTxns + pendingEdits + pendingClients;
+      stats.accountTypes    = accountTypeCounts;
 
       if (role === 'super_admin') {
         stats.totalUsers = await User.countDocuments();

@@ -17,9 +17,6 @@
   const _isTeller  = isTeller || user.role === 'teller';
   const val = (field, fallback = '') => client[field] !== undefined && client[field] !== null ? client[field] : fallback;
   const sel = (field, value) => String(val(field)) === String(value) ? 'selected' : '';
-  const tellerId = client.assignedTeller?._id
-    ? String(client.assignedTeller._id)
-    : String(client.assignedTeller || '');
 %>
 <div class="layout">
 
@@ -206,15 +203,19 @@
               </div>
 
               <div class="form-group">
-                <label for="phone">Phone Number</label>
+                <label for="phone">Phone Number <span class="req">*</span></label>
                 <div class="input-with-icon">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.38 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
                   </svg>
                   <input type="tel" id="phone" name="phone"
                          value="<%= val('phone') %>"
-                         placeholder="555-0100">
+                         placeholder="0553676107"
+                         pattern="0[0-9]{9}"
+                         title="10-digit number starting with 0 (e.g. 0553676107)"
+                         required>
                 </div>
+                <span class="field-hint">10 digits starting with 0 — e.g. 0553676107</span>
               </div>
             </div>
           </div>
@@ -232,10 +233,13 @@
                 <label for="accountNumber">Account Number <span class="req">*</span></label>
                 <input type="text" id="accountNumber" name="accountNumber"
                        value="<%= val('accountNumber') %>"
-                       placeholder="ACC-007"
-                       style="font-family: monospace; letter-spacing: .05em;"
-                       autocomplete="off" required>
-                <span class="field-hint">Must be unique across all accounts.</span>
+                       placeholder="<%= isEdit ? 'e.g. KSI3676107' : 'Fill in phone number…' %>"
+                       style="font-family: monospace; letter-spacing: .05em;<% if (!isEdit) { %> background:#f8fafc; color:#64748b;<% } %>"
+                       autocomplete="off"
+                       <% if (isEdit) { %>required<% } else { %>readonly<% } %>>
+                <span class="field-hint">
+                  <% if (isEdit) { %>Must be unique across all accounts.<% } else { %>Auto-generated: branch code + last 7 digits of phone number.<% } %>
+                </span>
               </div>
 
               <div class="form-group">
@@ -286,8 +290,11 @@
             </div>
           </div>
 
-          <!-- Section: Assignment (admins only — tellers are auto-assigned) -->
-          <% if (!_isTeller) { %>
+          <!-- Section: Assignment -->
+          <%
+            const tellerId = client.assignedTeller?._id ? String(client.assignedTeller._id) : String(client.assignedTeller || '');
+            const branchId = client.homeBranch?._id     ? String(client.homeBranch._id)     : String(client.homeBranch     || '');
+          %>
           <div class="form-section">
             <div class="form-section-label">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -298,7 +305,27 @@
               Assignment
             </div>
             <div class="form-grid">
-              <div class="form-group form-col-full">
+              <div class="form-group">
+                <label for="homeBranch">Home Branch <% if (!isEdit) { %><span class="req">*</span><% } %></label>
+                <div class="select-wrap">
+                  <select id="homeBranch" name="homeBranch" <% if (!isEdit) { %>required<% } %>>
+                    <option value="">Select branch…</option>
+                    <% (branches || []).forEach(b => { %>
+                    <option value="<%= b._id %>" data-code="<%= b.code || '' %>" <%- branchId === String(b._id) ? 'selected' : '' %>>
+                      <%= b.name %><%= b.code ? ` (${b.code})` : '' %>
+                    </option>
+                    <% }) %>
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" class="select-chevron">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </div>
+                <% if (!(branches || []).length) { %>
+                <span class="field-hint">No branches yet. <a href="/branches" target="_blank">Add branches</a> first.</span>
+                <% } %>
+              </div>
+              <% if (!_isTeller) { %>
+              <div class="form-group">
                 <label for="assignedTeller">Assigned Teller</label>
                 <div class="select-wrap">
                   <select id="assignedTeller" name="assignedTeller">
@@ -315,16 +342,16 @@
                 </div>
                 <span class="field-hint">Tellers can only view their assigned clients.</span>
               </div>
+              <% } %>
             </div>
           </div>
-          <% } %>
 
           <!-- Actions -->
           <div class="form-actions">
             <a href="<%= isEdit ? `/clients/${client._id}` : '/dashboard' %>" class="btn-cancel-form">
               Cancel
             </a>
-            <button type="submit" class="btn-save">
+            <button type="submit" class="btn-save" id="submitBtn">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                 <% if (isEdit) { %>
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -340,6 +367,39 @@
           </div>
 
         </form>
+<script>
+  <% if (!isEdit) { %>
+  (function () {
+    var phoneInput = document.getElementById('phone');
+    var branchSel  = document.getElementById('homeBranch');
+    var accInput   = document.getElementById('accountNumber');
+    if (!phoneInput || !accInput) return;
+
+    function generate() {
+      var digits = phoneInput.value.replace(/\D/g, '');
+      var last7  = digits.slice(-7);
+      if (last7.length < 7) { accInput.value = ''; return; }
+      var code = '';
+      if (branchSel && branchSel.value) {
+        var opt = branchSel.options[branchSel.selectedIndex];
+        code = (opt && opt.dataset.code) ? opt.dataset.code : '';
+      }
+      accInput.value = (code + last7).toUpperCase();
+    }
+
+    phoneInput.addEventListener('input', generate);
+    if (branchSel) branchSel.addEventListener('change', generate);
+    generate();
+  })();
+  <% } %>
+
+  document.querySelector('.client-form').addEventListener('submit', function () {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+  });
+</script>
       </div>
     </div>
   </div>

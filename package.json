@@ -18,7 +18,8 @@
     "express-rate-limit": "^8.5.2",
     "express-session": "^1.19.0",
     "helmet": "^8.2.0",
-    "mongoose": "^7.6.1"
+    "mongoose": "^7.6.1",
+    "multer": "^2.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

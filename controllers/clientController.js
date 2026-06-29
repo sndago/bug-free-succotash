@@ -1,18 +1,63 @@
+const path        = require('path');
+const fs          = require('fs');
+const multer      = require('multer');
 const Client      = require('../models/Client');
 const Transaction = require('../models/Transaction');
 const User        = require('../models/User');
+const Branch      = require('../models/Branch');
 const logActivity = require('../utils/logActivity');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, '../public/uploads/clients')),
+  filename:    (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${req.params.id}-${Date.now()}${ext}`);
+  },
+});
+
+const photoUpload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG, PNG, WebP, or GIF images are allowed.'));
+  },
+}).single('photo');
 
 const VALID_RANGES = ['30', '90', '365', 'all'];
 
 /* ── helpers ─────────────────────────────────── */
-const getTellers = () => User.find({ role: 'teller', isActive: true }).select('name').lean();
+const getTellers  = () => User.find({ role: 'teller', isActive: true }).select('name').lean();
+const getBranches = () => Branch.find({ isActive: true }).sort({ name: 1 }).lean();
+
+const generateAccountNumber = async (phone, branchId) => {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length < 7) return '';
+  const last7 = digits.slice(-7);
+  let prefix = '';
+  if (branchId) {
+    const branch = await Branch.findById(branchId).select('code').lean();
+    if (branch?.code) prefix = branch.code;
+  }
+  const base = (prefix + last7).toUpperCase();
+  if (!await Client.exists({ accountNumber: base })) return base;
+  for (let i = 1; i <= 99; i++) {
+    const candidate = `${base}${i}`;
+    if (!await Client.exists({ accountNumber: candidate })) return candidate;
+  }
+  return base + Date.now().toString().slice(-4);
+};
 
 const validate = (body, existingId = null) => {
   const errors = [];
   if (!body.name?.trim())          errors.push('Full name is required.');
   if (!body.accountNumber?.trim()) errors.push('Account number is required.');
   if (!body.accountType)           errors.push('Account type is required.');
+  if (!body.phone?.trim()) {
+    errors.push('Phone number is required.');
+  } else if (!/^0\d{9}$/.test(body.phone.trim())) {
+    errors.push('Phone must be a 10-digit number starting with 0 (e.g. 0553676107).');
+  }
   if (body.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())) {
     errors.push('Email address is not valid.');
   }
@@ -26,7 +71,7 @@ const clientDetail = async (req, res) => {
     const filter = { _id: req.params.id };
     if (role === 'teller') filter.assignedTeller = userId;
 
-    const client = await Client.findOne(filter).populate('assignedTeller', 'name').lean();
+    const client = await Client.findOne(filter).populate('assignedTeller', 'name').populate('homeBranch', 'name code').lean();
     if (!client) return res.status(404).render('login', { error: 'Client not found or access denied.' });
 
     const range     = VALID_RANGES.includes(req.query.range) ? req.query.range : '90';
@@ -71,10 +116,14 @@ const clientDetail = async (req, res) => {
 const newClientForm = async (req, res) => {
   try {
     const isTeller = req.session.user.role === 'teller';
-    const tellers  = isTeller ? [] : await getTellers();
+    const [tellers, branches] = await Promise.all([
+      isTeller ? [] : getTellers(),
+      getBranches(),
+    ]);
     res.render('client-form', {
       user: req.session.user,
       tellers,
+      branches,
       client:  {},
       errors:  [],
       isEdit:  false,
@@ -89,30 +138,30 @@ const newClientForm = async (req, res) => {
 const createClient = async (req, res) => {
   const { role, id: userId } = req.session.user;
   const isTeller = role === 'teller';
+  req.body.accountNumber = await generateAccountNumber(req.body.phone, req.body.homeBranch);
   const errors = validate(req.body);
+  if (!req.body.homeBranch) errors.push('Home branch is required.');
   try {
-    // Unique account number check
-    if (req.body.accountNumber?.trim()) {
-      const dup = await Client.findOne({ accountNumber: req.body.accountNumber.trim().toUpperCase() }).lean();
-      if (dup) errors.push('Account number already exists.');
-    }
-
     if (errors.length) {
-      const tellers = isTeller ? [] : await getTellers();
+      const [tellers, branches] = await Promise.all([
+        isTeller ? [] : getTellers(),
+        getBranches(),
+      ]);
       return res.status(422).render('client-form', {
-        user: req.session.user, tellers, client: req.body, errors, isEdit: false, isTeller,
+        user: req.session.user, tellers, branches, client: req.body, errors, isEdit: false, isTeller,
       });
     }
 
     const client = await Client.create({
       name:           req.body.name.trim(),
       email:          req.body.email?.trim()   || undefined,
-      phone:          req.body.phone?.trim()   || undefined,
+      phone:          req.body.phone.trim(),
       accountNumber:  req.body.accountNumber.trim().toUpperCase(),
       accountType:    req.body.accountType,
       balance:        0,
       status:         isTeller ? 'inactive' : (req.body.status || 'active'),
       assignedTeller: isTeller ? userId : (req.body.assignedTeller || undefined),
+      homeBranch:     req.body.homeBranch || undefined,
       approvalStatus: isTeller ? 'pending' : 'approved',
       requestedBy:    isTeller ? userId : undefined,
     });
@@ -123,9 +172,12 @@ const createClient = async (req, res) => {
       : { type: 'success', message: `Client "${client.name}" created successfully.` };
     res.redirect(303, `/clients/${client._id}`);
   } catch (err) {
-    const tellers = isTeller ? [] : await getTellers();
+    const [tellers, branches] = await Promise.all([
+      isTeller ? [] : getTellers(),
+      getBranches(),
+    ]);
     res.status(500).render('client-form', {
-      user: req.session.user, tellers, client: req.body,
+      user: req.session.user, tellers, branches, client: req.body,
       errors: [err.message], isEdit: false, isTeller,
     });
   }
@@ -134,14 +186,15 @@ const createClient = async (req, res) => {
 /* ── UPDATE: show form ───────────────────────── */
 const editClientForm = async (req, res) => {
   try {
-    const [client, tellers] = await Promise.all([
-      Client.findById(req.params.id).populate('assignedTeller', 'name').lean(),
+    const [client, tellers, branches] = await Promise.all([
+      Client.findById(req.params.id).populate('assignedTeller', 'name').populate('homeBranch', 'name code').lean(),
       getTellers(),
+      getBranches(),
     ]);
     if (!client) return res.status(404).render('login', { error: 'Client not found.' });
 
     res.render('client-form', {
-      user: req.session.user, tellers, client, errors: [], isEdit: true,
+      user: req.session.user, tellers, branches, client, errors: [], isEdit: true,
       isTeller: req.session.user.role === 'teller',
     });
   } catch (err) {
@@ -163,34 +216,37 @@ const updateClient = async (req, res) => {
     }
 
     if (errors.length) {
-      const tellers = await getTellers();
+      const [tellers, branches] = await Promise.all([getTellers(), getBranches()]);
       return res.status(422).render('client-form', {
-        user: req.session.user, tellers,
+        user: req.session.user, tellers, branches,
         client: { ...req.body, _id: req.params.id },
         errors, isEdit: true,
+        isTeller: req.session.user.role === 'teller',
       });
     }
 
     await Client.findByIdAndUpdate(req.params.id, {
       name:           req.body.name.trim(),
       email:          req.body.email?.trim()   || undefined,
-      phone:          req.body.phone?.trim()   || undefined,
+      phone:          req.body.phone.trim(),
       accountNumber:  req.body.accountNumber.trim().toUpperCase(),
       accountType:    req.body.accountType,
       balance:        parseFloat(req.body.balance) || 0,
       status:         req.body.status || 'active',
       assignedTeller: req.body.assignedTeller || undefined,
+      homeBranch:     req.body.homeBranch     || undefined,
     }, { runValidators: true });
 
     await logActivity(req, 'CLIENT_UPDATE', 'client', `Updated client account for ${req.body.name.trim()}`, { accountNumber: req.body.accountNumber }, req.params.id);
     req.session.flash = { type: 'success', message: 'Client updated successfully.' };
     res.redirect(303, `/clients/${req.params.id}`);
   } catch (err) {
-    const tellers = await getTellers();
+    const [tellers, branches] = await Promise.all([getTellers(), getBranches()]);
     res.status(500).render('client-form', {
-      user: req.session.user, tellers,
+      user: req.session.user, tellers, branches,
       client: { ...req.body, _id: req.params.id },
       errors: [err.message], isEdit: true,
+      isTeller: req.session.user.role === 'teller',
     });
   }
 };
@@ -262,6 +318,38 @@ const rejectClient = async (req, res) => {
   }
 };
 
+/* ── PHOTO UPLOAD ────────────────────────────── */
+const uploadPhoto = (req, res) => {
+  photoUpload(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+
+    try {
+      const { role, id: userId } = req.session.user;
+      const filter = { _id: req.params.id };
+      if (role === 'teller') filter.assignedTeller = userId;
+
+      const client = await Client.findOne(filter);
+      if (!client) return res.status(404).json({ error: 'Client not found or access denied.' });
+
+      // Delete old photo file if it exists
+      if (client.photo) {
+        const oldPath = path.join(__dirname, '../public', client.photo);
+        fs.unlink(oldPath, () => {});
+      }
+
+      const photoUrl = `/uploads/clients/${req.file.filename}`;
+      client.photo = photoUrl;
+      await client.save();
+
+      await logActivity(req, 'CLIENT_PHOTO', 'client', `Updated profile photo for ${client.name}`, {}, client._id);
+      res.json({ photo: photoUrl });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+};
+
 /* ── LIST: all clients ───────────────────────── */
 const listClients = async (req, res) => {
   const { role, id: userId } = req.session.user;
@@ -281,4 +369,4 @@ const listClients = async (req, res) => {
   }
 };
 
-module.exports = { listClients, clientDetail, newClientForm, createClient, editClientForm, updateClient, deleteClient, approveClient, rejectClient };
+module.exports = { listClients, clientDetail, newClientForm, createClient, editClientForm, updateClient, deleteClient, approveClient, rejectClient, uploadPhoto };

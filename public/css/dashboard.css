@@ -835,6 +835,7 @@ body {
   border-width: 26px;
   border-style: solid;
   opacity: .045;
+  pointer-events: none;
 }
 .big-stat-card.indigo::after { border-color: #6366f1; }
 .big-stat-card.green::after  { border-color: #10b981; }
