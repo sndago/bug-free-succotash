@@ -192,7 +192,7 @@
               <tr class="clickable-row" onclick="window.location='/clients/<%= client._id %>'">
                 <td>
                   <div class="client-name">
-                    <%= client.name %>
+                    <a href="/clients/<%= client._id %>" class="client-row-link"><%= client.name %></a>
                     <% if (isNewClient(client)) { %><span class="badge-new">New</span><% } %>
                   </div>
                   <div class="client-email"><%= client.email || '—' %></div>
@@ -246,6 +246,8 @@
 </div>
 
 <style>
+  .client-row-link { color: inherit; text-decoration: none; }
+  .client-row-link:hover { color: #6366f1; }
   .link-inline { color: #6366f1; text-decoration: none; font-weight: 600; }
   .link-inline:hover { text-decoration: underline; }
   .badge-new {

@@ -19,6 +19,15 @@
 
 .breadcrumb-sep { color: #cbd5e1; }
 
+.breadcrumb-link {
+  font-size: .875rem;
+  font-weight: 500;
+  color: #6366f1;
+  text-decoration: none;
+  transition: color .15s;
+}
+.breadcrumb-link:hover { color: #4f46e5; }
+
 .breadcrumb-current {
   font-size: .875rem;
   font-weight: 600;

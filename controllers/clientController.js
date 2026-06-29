@@ -9,6 +9,8 @@ const User        = require('../models/User');
 const Branch      = require('../models/Branch');
 const logActivity = require('../utils/logActivity');
 
+fs.mkdirSync(path.join(__dirname, '../public/uploads/clients'), { recursive: true });
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, '../public/uploads/clients')),
   filename:    (req, file, cb) => {

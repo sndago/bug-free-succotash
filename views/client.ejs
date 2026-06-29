@@ -123,6 +123,10 @@
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
           <path d="M9 18l6-6-6-6"/>
         </svg>
+        <a href="/clients" class="breadcrumb-link">Clients</a>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" class="breadcrumb-sep">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
         <span class="breadcrumb-current"><%= client.name %></span>
       </div>
       <div class="topbar-actions">
@@ -379,11 +383,12 @@
         <div class="table-header">
           <div class="txn-header-left">
             <h3>Transaction History</h3>
+            <% const acctSuffix = selectedAccountId ? '&account=' + selectedAccountId : ''; %>
             <div class="period-tabs">
-              <a href="?range=30"  class="period-tab <%- range === '30'  ? 'active' : '' %>">30D</a>
-              <a href="?range=90"  class="period-tab <%- range === '90'  ? 'active' : '' %>">90D</a>
-              <a href="?range=365" class="period-tab <%- range === '365' ? 'active' : '' %>">1Y</a>
-              <a href="?range=all" class="period-tab <%- range === 'all' ? 'active' : '' %>">All</a>
+              <a href="?range=30<%- acctSuffix %>"  class="period-tab <%- range === '30'  ? 'active' : '' %>">30D</a>
+              <a href="?range=90<%- acctSuffix %>"  class="period-tab <%- range === '90'  ? 'active' : '' %>">90D</a>
+              <a href="?range=365<%- acctSuffix %>" class="period-tab <%- range === '365' ? 'active' : '' %>">1Y</a>
+              <a href="?range=all<%- acctSuffix %>" class="period-tab <%- range === 'all' ? 'active' : '' %>">All</a>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:.625rem">
@@ -394,7 +399,7 @@
               <input type="text" placeholder="Search transactions…" oninput="filterTxns(this.value)" id="txnSearch">
             </div>
             <% if (['admin','super_admin','teller'].includes(user.role) && client.approvalStatus !== 'pending' && client.approvalStatus !== 'rejected') { %>
-            <a href="/clients/<%= client._id %>/transactions/new" class="btn-add-client" style="white-space:nowrap">
+            <a href="/clients/<%= client._id %>/transactions/new<%= selectedAccountId ? '?account=' + selectedAccountId : '' %>" class="btn-add-client" style="white-space:nowrap">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>

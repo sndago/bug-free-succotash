@@ -8,6 +8,8 @@ const Transaction = require('../models/Transaction');
 const ActivityLog = require('../models/ActivityLog');
 const logActivity = require('../utils/logActivity');
 
+fs.mkdirSync(path.join(__dirname, '../public/uploads/users'), { recursive: true });
+
 const userPhotoUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, path.join(__dirname, '../public/uploads/users')),
@@ -353,8 +355,10 @@ const uploadUserPhoto = (req, res) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
     try {
-      const roles = manageableRoles(req.session.user.role);
-      const target = await User.findOne({ _id: req.params.id, role: { $in: roles } });
+      const isSelf = String(req.params.id) === String(req.session.user.id);
+      const roles  = manageableRoles(req.session.user.role);
+      const query  = isSelf ? { _id: req.params.id } : { _id: req.params.id, role: { $in: roles } };
+      const target = await User.findOne(query);
       if (!target) return res.status(404).json({ error: 'User not found.' });
 
       if (target.photo) {
