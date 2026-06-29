@@ -14,9 +14,15 @@ const login = async (req, res) => {
     if (!user || !(await user.comparePassword(password))) {
       return res.render('login', { error: 'Invalid Staff ID or password.' });
     }
-    req.session.user = { id: user._id, name: user.name, email: user.email, role: user.role };
-    await logActivity(req, 'LOGIN', 'auth', `${user.name} logged in`, {}, user._id);
-    res.redirect(303, '/dashboard');
+    // Regenerate session ID to prevent session fixation attacks
+    const userData = { id: user._id, name: user.name, email: user.email, role: user.role };
+    req.session.regenerate(async (regErr) => {
+      if (regErr) return res.render('login', { error: 'Something went wrong. Please try again.' });
+      req.session.user = userData;
+      await logActivity(req, 'LOGIN', 'auth', `${user.name} logged in`, {}, user._id);
+      res.redirect(303, '/dashboard');
+    });
+    return;
   } catch {
     res.render('login', { error: 'Something went wrong. Please try again.' });
   }

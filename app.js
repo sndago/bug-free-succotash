@@ -15,15 +15,38 @@ const app = express();
 
 app.set('trust proxy', 1);
 
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+// Security headers — CSP allows inline scripts/styles (required by EJS templates)
+// but blocks objects, restricts base URI, and prevents framing
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc:  ["'self'"],
+        scriptSrc:   ["'self'", "'unsafe-inline'"],
+        styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc:     ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc:      ["'self'", 'data:', 'blob:'],
+        connectSrc:  ["'self'"],
+        objectSrc:   ["'none'"],
+        baseUri:     ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+// CORS — only allow an explicit origin; no wildcard in production
+const corsOrigin = process.env.CORS_ORIGIN;
+app.use(cors(corsOrigin ? { origin: corsOrigin, credentials: true } : { origin: false }));
+
 app.use(compression());
 app.use(
   rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false })
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
 app.use(
   session({
@@ -35,9 +58,10 @@ app.use(
       touchAfter: 24 * 3600,
     }),
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure:   process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 8 * 60 * 60 * 1000,
+      sameSite: 'lax',
+      maxAge:   8 * 60 * 60 * 1000,
     },
   })
 );

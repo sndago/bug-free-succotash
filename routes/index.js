@@ -1,5 +1,6 @@
-const express = require('express');
-const router  = express.Router();
+const express   = require('express');
+const router    = express.Router();
+const rateLimit = require('express-rate-limit');
 
 const { showLogin, login, logout }                                    = require('../controllers/authController');
 const { dashboard }                                                    = require('../controllers/dashboardController');
@@ -25,8 +26,18 @@ const { listBranches, createBranch,
         branchBalances }                                               = require('../controllers/branchController');
 const { requireAuth, requireAdmin, requireSuperAdmin }                 = require('../middleware/auth');
 
+// Strict rate limit for login — 10 attempts per 15 min per IP, failed only
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many login attempts. Please try again in 15 minutes.',
+});
+
 router.get('/',    showLogin);
-router.post('/login',  login);
+router.post('/login',  loginLimiter, login);
 router.post('/logout', logout);
 
 router.get('/dashboard', requireAuth, dashboard);

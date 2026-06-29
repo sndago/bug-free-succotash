@@ -85,3 +85,13 @@ startServer().catch((err) => {
   logger.error('Failed to start server', err.message);
   process.exit(1);
 });
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', reason?.message || reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', err.message);
+  process.exit(1);
+});
