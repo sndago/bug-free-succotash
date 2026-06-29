@@ -1,3 +1,4 @@
+const crypto  = require('crypto');
 const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
@@ -50,7 +51,7 @@ app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'cone-dev-secret-change-in-production',
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
